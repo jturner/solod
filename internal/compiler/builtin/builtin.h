@@ -460,17 +460,17 @@ static inline so_String so_error_error(void* self) {
 }
 
 // so_error_cstr returns the error message as a C string.
-#define so_error_cstr(err) ({                      \
-    so_Error _err = (err);                         \
-    const char* _err_str;                          \
-    if (!_err.self) {                              \
-        _err_str = "<nil>";                        \
-    } else if (_err.Error == so_error_error) {     \
-        _err_str = (const char*)_err.self;         \
-    } else {                                       \
-        _err_str = so_cstr(_err.Error(_err.self)); \
-    }                                              \
-    _err_str;                                      \
+#define so_error_cstr(err) ({                          \
+    so_Error _error = (err);                           \
+    const char* _err_str;                              \
+    if (!_error.self) {                                \
+        _err_str = "<nil>";                            \
+    } else if (_error.Error == so_error_error) {       \
+        _err_str = (const char*)_error.self;           \
+    } else {                                           \
+        _err_str = so_cstr(_error.Error(_error.self)); \
+    }                                                  \
+    _err_str;                                          \
 })
 
 // panic aborts the program with the given message.
