@@ -26,6 +26,11 @@ func newPerson(name string) Person {
 	return p
 }
 
+// Unexported struct type.
+type point struct {
+	x, y int
+}
+
 // Alias for a struct type.
 type Human = Person
 type Employee Person
@@ -124,6 +129,25 @@ func main() {
 		var b4 Benchmark
 		if b4.loop.n != 0 {
 			panic("b4.loop.n != 0")
+		}
+	}
+	{
+		// Compare struct values.
+		p1 := point{x: 11, y: 22}
+		p2 := point{x: 11, y: 22}
+		p3 := point{x: 11, y: 33}
+		if p1 != p2 {
+			panic("p1 != p2")
+		}
+		if p1 == p3 {
+			panic("p1 == p3")
+		}
+		// And literals.
+		if (p1 != point{x: 11, y: 22}) {
+			panic("p1 != point{x: 11, y: 22}")
+		}
+		if (p1 == point{}) {
+			panic("p1 == point{}")
 		}
 	}
 }

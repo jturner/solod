@@ -62,14 +62,14 @@ int main(void) {
         }
         (void)a;
         so_int b[3] = {1, 2, 3};
-        if (so_array_ne(b, a, 3 * sizeof(so_int))) {
+        if (so_mem_ne(b, a, 3 * sizeof(so_int))) {
             so_panic("want b == a");
         }
         so_int c[3] = {3, 2, 1};
-        if (so_array_eq(c, a, 3 * sizeof(so_int))) {
+        if (so_mem_eq(c, a, 3 * sizeof(so_int))) {
             so_panic("want c != a");
         }
-        if (so_array_ne(c, ((so_int[3]){3, 2, 1}), 3 * sizeof(so_int))) {
+        if (so_mem_ne(c, ((so_int[3]){3, 2, 1}), 3 * sizeof(so_int))) {
             so_panic("want c == {3, 2, 1}");
         }
     }
@@ -123,7 +123,7 @@ int main(void) {
         // Array pointers.
         so_int a[3] = {1, 2, 3};
         so_int (*p)[3] = &a;
-        if (so_array_ne((*p), a, 3 * sizeof(so_int))) {
+        if (so_mem_ne((*p), a, 3 * sizeof(so_int))) {
             so_panic("want p == a");
         }
         if ((*p)[1] != 2) {
@@ -222,11 +222,11 @@ int main(void) {
         b[0] = 1;
         b[1] = 2;
         b[2] = 3;
-        if (so_array_ne(a, b, 3 * sizeof(so_int))) {
+        if (so_mem_ne(a, b, 3 * sizeof(so_int))) {
             so_panic("want a == b");
         }
         so_int c[3] = {3, 2, 1};
-        if (so_array_eq(a, c, 3 * sizeof(so_int))) {
+        if (so_mem_eq(a, c, 3 * sizeof(so_int))) {
             so_panic("want a != c");
         }
     }

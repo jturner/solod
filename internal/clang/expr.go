@@ -69,7 +69,7 @@ func (g *Generator) emitNumericLit(n *ast.BasicLit) {
 // emitBinaryExpr emits a binary expression.
 func (g *Generator) emitBinaryExpr(n *ast.BinaryExpr) {
 	w := g.state.writer
-	// String comparisons: emit so_string_eq/ne/lt/gt/lte/gte calls.
+	// String comparison: emit so_string_eq/ne/lt/gt/lte/gte calls.
 	if isCompare(n.Op) {
 		if g.hasStringType(n.X) {
 			fmt.Fprintf(w, "%s(", stringCompareFunc(n.Op))
@@ -97,9 +97,10 @@ func (g *Generator) emitBinaryExpr(n *ast.BinaryExpr) {
 		return
 	}
 
-	// Interface comparisons: emit iface.self == NULL for nil,
-	// or iface.self == other.self for non-nil.
+	// Equality comparison for various cases.
 	if n.Op == token.EQL || n.Op == token.NEQ {
+		// Interface comparison: emit iface.self == NULL for nil,
+		// or iface.self == other.self for non-nil.
 		if isNamedNonEmptyInterface(g.types.TypeOf(n.X)) {
 			if isNilType(g.types.TypeOf(n.Y)) {
 				g.emitExpr(n.X)
@@ -112,33 +113,48 @@ func (g *Generator) emitBinaryExpr(n *ast.BinaryExpr) {
 			fmt.Fprintf(w, ".self")
 			return
 		}
-	}
 
-	// Slice nil comparisons: emit s.ptr == NULL / != NULL.
-	if n.Op == token.EQL || n.Op == token.NEQ {
+		// Slice nil comparison: emit s.ptr == NULL / != NULL.
 		if _, ok := g.types.TypeOf(n.X).Underlying().(*types.Slice); ok && isNilType(g.types.TypeOf(n.Y)) {
 			g.emitExpr(n.X)
 			fmt.Fprintf(w, ".ptr %s NULL", n.Op.String())
 			return
 		}
-	}
 
-	// Map nil comparisons: emit m == NULL / != NULL.
-	if n.Op == token.EQL || n.Op == token.NEQ {
+		// Map nil comparison: emit m == NULL / != NULL.
 		if _, ok := g.types.TypeOf(n.X).Underlying().(*types.Map); ok && isNilType(g.types.TypeOf(n.Y)) {
 			g.emitExpr(n.X)
 			fmt.Fprintf(w, " %s NULL", n.Op.String())
 			return
 		}
-	}
 
-	// Array comparisons: emit so_array_eq/ne calls.
-	if n.Op == token.EQL || n.Op == token.NEQ {
+		// Struct comparison: emit so_mem_eq/ne calls.
+		if _, ok := g.types.TypeOf(n.X).Underlying().(*types.Struct); ok {
+			if _, ok := n.X.(*ast.CallExpr); ok {
+				g.fail(n, "cannot compare struct call expressions")
+			}
+			if _, ok := n.Y.(*ast.CallExpr); ok {
+				g.fail(n, "cannot compare struct call expressions")
+			}
+			if n.Op == token.EQL {
+				fmt.Fprintf(w, "so_mem_eq(&")
+			} else {
+				fmt.Fprintf(w, "so_mem_ne(&")
+			}
+			g.emitExpr(n.X)
+			fmt.Fprintf(w, ", &")
+			g.emitExpr(n.Y)
+			structType := g.mapType(n, g.types.TypeOf(n.X))
+			fmt.Fprintf(w, ", sizeof(%s))", structType)
+			return
+		}
+
+		// Array comparison: emit so_mem_eq/ne calls.
 		if arr, ok := g.types.TypeOf(n.X).Underlying().(*types.Array); ok {
 			if n.Op == token.EQL {
-				fmt.Fprintf(w, "so_array_eq(")
+				fmt.Fprintf(w, "so_mem_eq(")
 			} else {
-				fmt.Fprintf(w, "so_array_ne(")
+				fmt.Fprintf(w, "so_mem_ne(")
 			}
 			g.emitArrayCmpOperand(n.X, arr)
 			fmt.Fprintf(w, ", ")
@@ -149,7 +165,7 @@ func (g *Generator) emitBinaryExpr(n *ast.BinaryExpr) {
 		}
 	}
 
-	// Shift expressions: parenthesize because Go's << >> have multiplicative
+	// Shift expression: parenthesize because Go's << >> have multiplicative
 	// precedence, but C's << >> are below additive (+/-).
 	// Cast integer literal operands to the result type so that e.g. 1 << 63
 	// uses a 64-bit left operand instead of C's 32-bit int.

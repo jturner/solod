@@ -1,5 +1,15 @@
 #include "main.h"
 
+// -- Types --
+
+typedef struct point point;
+
+// Unexported struct type.
+typedef struct point {
+    so_int x;
+    so_int y;
+} point;
+
 // -- Forward declarations --
 static main_Person newPerson(so_String name);
 
@@ -88,6 +98,25 @@ int main(void) {
         main_Benchmark b4 = {0};
         if (b4.loop.n != 0) {
             so_panic("b4.loop.n != 0");
+        }
+    }
+    {
+        // Compare struct values.
+        point p1 = (point){.x = 11, .y = 22};
+        point p2 = (point){.x = 11, .y = 22};
+        point p3 = (point){.x = 11, .y = 33};
+        if (so_mem_ne(&p1, &p2, sizeof(point))) {
+            so_panic("p1 != p2");
+        }
+        if (so_mem_eq(&p1, &p3, sizeof(point))) {
+            so_panic("p1 == p3");
+        }
+        // And literals.
+        if ((so_mem_ne(&p1, &(point){.x = 11, .y = 22}, sizeof(point)))) {
+            so_panic("p1 != point{x: 11, y: 22}");
+        }
+        if ((so_mem_eq(&p1, &(point){}, sizeof(point)))) {
+            so_panic("p1 == point{}");
         }
     }
     return 0;

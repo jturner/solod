@@ -120,6 +120,18 @@ typedef uint64_t so_uint;
     _size ? alloca(_size) : NULL;                         \
 })
 
+// --- Comparison ---
+
+// mem_eq returns true if two memory blocks are equal.
+static inline bool so_mem_eq(const void* a, const void* b, size_t size) {
+    return memcmp(a, b, size) == 0;
+}
+
+// mem_ne returns true if two memory blocks are not equal.
+static inline bool so_mem_ne(const void* a, const void* b, size_t size) {
+    return memcmp(a, b, size) != 0;
+}
+
 // --- String type ---
 
 // String is a pointer to array of bytes plus a length.
@@ -231,16 +243,6 @@ static inline size_t strlen(const char* s) {
 #endif
 
 // --- Arrays ---
-
-// array_eq returns true if two arrays are equal.
-static inline bool so_array_eq(const void* a, const void* b, size_t size) {
-    return memcmp(a, b, size) == 0;
-}
-
-// array_ne returns true if two arrays are not equal.
-static inline bool so_array_ne(const void* a, const void* b, size_t size) {
-    return memcmp(a, b, size) != 0;
-}
 
 // slice_array converts a slice to an array pointer with bounds checking.
 #define so_slice_array(s, n) ({                                 \
