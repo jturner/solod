@@ -641,82 +641,24 @@ static inline bool so_key_eq_str(const void* a, const void* b, size_t n) {
     _Generic((key), so_String: so_key_eq_str, default: so_key_eq_def)
 
 // map_nextpow2 rounds up to the next power of 2.
-static inline so_int so_map_nextpow2(so_int n) {
-    if (n == 0) return 1;
-    n--;
-    n |= n >> 1;
-    n |= n >> 2;
-    n |= n >> 4;
-    n |= n >> 8;
-    n |= n >> 16;
-#if so_int_bits == 64
-    n |= n >> 32;
-#endif
-    return n + 1;
-}
+so_int so_map_nextpow2(so_int n);
+
+// map_find looks up a key in the map.
+void so_map_find(const so_Map* m, const void* key, size_t key_size,
+                 void* out_val, size_t val_size,
+                 uint64_t hash, bool* found,
+                 bool (*eq)(const void*, const void*, size_t));
+
+// map_set_impl inserts or updates a key-value pair in the map.
+void so_map_set_impl(so_Map* m, const void* key, size_t key_size,
+                     const void* val, size_t val_size,
+                     uint64_t hash,
+                     bool (*eq)(const void*, const void*, size_t));
 
 // map_cap computes the internal capacity for n elements (keeps load <= 75%).
 static inline so_int so_map_cap(so_int n) {
     if (n == 0) return 0;
     return so_map_nextpow2(n + n / 3 + 1);
-}
-
-// map_find looks up a key in the map.
-// If found, copies the value to out_val (when non-NULL) and sets *found = true.
-// If not found, sets *found = false and leaves out_val unchanged.
-static inline void so_map_find(const so_Map* m, const void* key, size_t key_size,
-                               void* out_val, size_t val_size,
-                               uint64_t hash, bool* found,
-                               bool (*eq)(const void*, const void*, size_t)) {
-    if (m->cap == 0) {
-        *found = false;
-        return;
-    }
-    size_t mask = m->cap - 1;
-    size_t step = (size_t)(hash >> 32) | 1;
-    size_t idx = (size_t)hash & mask;
-    for (so_int p = 0; p < m->cap; p++) {
-        if (!m->used[idx]) {
-            *found = false;
-            return;
-        }
-        if (eq((const char*)m->keys + idx * key_size, key, key_size)) {
-            if (out_val) {
-                memcpy(out_val, (const char*)m->vals + idx * val_size, val_size);
-            }
-            *found = true;
-            return;
-        }
-        idx = (idx + step) & mask;
-    }
-    *found = false;
-}
-
-// map_set_impl inserts or updates a key-value pair in the map.
-// Panics if the map is full and the key is not found.
-static inline void so_map_set_impl(so_Map* m, const void* key, size_t key_size,
-                                   const void* val, size_t val_size,
-                                   uint64_t hash,
-                                   bool (*eq)(const void*, const void*, size_t)) {
-    size_t mask = m->cap - 1;
-    size_t step = (size_t)(hash >> 32) | 1;
-    size_t idx = (size_t)hash & mask;
-    for (so_int p = 0;; p++) {
-        if (p >= m->cap)
-            so_panic("map: out of capacity");
-        if (!m->used[idx]) {
-            memcpy((char*)m->keys + idx * key_size, key, key_size);
-            memcpy((char*)m->vals + idx * val_size, val, val_size);
-            m->used[idx] = 1;
-            m->len++;
-            return;
-        }
-        if (eq((const char*)m->keys + idx * key_size, key, key_size)) {
-            memcpy((char*)m->vals + idx * val_size, val, val_size);
-            return;
-        }
-        idx = (idx + step) & mask;
-    }
 }
 
 // make_map creates a zero-initialized map on the stack.
