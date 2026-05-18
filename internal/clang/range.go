@@ -14,7 +14,7 @@ func (g *Generator) emitIntRange(w io.Writer, stmt *ast.RangeStmt) {
 		// Basic form: `for range n { ... }`
 		fmt.Fprintf(w, "%sfor (so_int _i = 0; _i < ", g.indent())
 		g.emitExpr(w, stmt.X)
-		fmt.Fprintf(w, "; _i++) {\n")
+		fmt.Fprint(w, "; _i++) {\n")
 		g.emitBlock(w, stmt.Body)
 		fmt.Fprintf(w, "%s}\n", g.indent())
 		return
@@ -69,7 +69,7 @@ func (g *Generator) emitArrayRange(w io.Writer, stmt *ast.RangeStmt) {
 			}
 			fmt.Fprintf(w, "%s%s%s = ", g.indent(), valDecl, valIdent.Name)
 			if ptrDeref {
-				fmt.Fprintf(w, "(*")
+				fmt.Fprint(w, "(*")
 				g.emitExpr(w, stmt.X)
 				fmt.Fprintf(w, ")[%s];\n", key.Name)
 			} else {
@@ -93,7 +93,7 @@ func (g *Generator) emitSliceRange(w io.Writer, stmt *ast.RangeStmt) {
 		// Basic form: `for range slice { ... }`
 		fmt.Fprintf(w, "%sfor (so_int _i = 0; _i < so_len(", g.indent())
 		g.emitExpr(w, stmt.X)
-		fmt.Fprintf(w, "); _i++) {\n")
+		fmt.Fprint(w, "); _i++) {\n")
 		g.emitBlock(w, stmt.Body)
 		fmt.Fprintf(w, "%s}\n", g.indent())
 		return
@@ -133,12 +133,12 @@ func (g *Generator) emitStringRange(w io.Writer, stmt *ast.RangeStmt) {
 		// Basic form: `for range str { ... }`
 		fmt.Fprintf(w, "%sfor (so_int _i = 0, _iw = 0; _i < so_len(", g.indent())
 		g.emitExpr(w, stmt.X)
-		fmt.Fprintf(w, "); _i += _iw) {\n")
+		fmt.Fprint(w, "); _i += _iw) {\n")
 		g.state.indent++
 		fmt.Fprintf(w, "%s_iw = 0;\n", g.indent())
 		fmt.Fprintf(w, "%sso_utf8_decode(", g.indent())
 		g.emitExpr(w, stmt.X)
-		fmt.Fprintf(w, ", _i, &_iw);\n")
+		fmt.Fprint(w, ", _i, &_iw);\n")
 		g.state.indent--
 		g.emitBlock(w, stmt.Body)
 		fmt.Fprintf(w, "%s}\n", g.indent())

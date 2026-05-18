@@ -22,25 +22,25 @@ func (g *Generator) emitMapLit(w io.Writer, n *ast.CompositeLit) {
 	size := len(n.Elts)
 
 	if size == 0 {
-		fmt.Fprintf(w, "&(so_Map){0}")
+		fmt.Fprint(w, "&(so_Map){0}")
 		return
 	}
 
 	fmt.Fprintf(w, "so_map_lit(%s, %s, %d, ((%s[]){", keyType, valType, size, keyType)
 	for i, elt := range n.Elts {
 		if i > 0 {
-			fmt.Fprintf(w, ", ")
+			fmt.Fprint(w, ", ")
 		}
 		g.emitExpr(w, elt.(*ast.KeyValueExpr).Key)
 	}
 	fmt.Fprintf(w, "}), ((%s[]){", valType)
 	for i, elt := range n.Elts {
 		if i > 0 {
-			fmt.Fprintf(w, ", ")
+			fmt.Fprint(w, ", ")
 		}
 		g.emitExpr(w, elt.(*ast.KeyValueExpr).Value)
 	}
-	fmt.Fprintf(w, "}))")
+	fmt.Fprint(w, "}))")
 }
 
 // emitMapIndexExpr emits a map index read as so_map_get(K, V, m, key).
@@ -51,9 +51,9 @@ func (g *Generator) emitMapIndexExpr(w io.Writer, n *ast.IndexExpr) {
 
 	fmt.Fprintf(w, "so_map_get(%s, %s, ", keyType, valType)
 	g.emitExpr(w, n.X)
-	fmt.Fprintf(w, ", ")
+	fmt.Fprint(w, ", ")
 	g.emitExpr(w, n.Index)
-	fmt.Fprintf(w, ")")
+	fmt.Fprint(w, ")")
 }
 
 // emitMapIndexAssign emits a map index write as so_map_set(K, V, &m, key, val).
@@ -64,11 +64,11 @@ func (g *Generator) emitMapIndexAssign(w io.Writer, node ast.Node, idx *ast.Inde
 
 	fmt.Fprintf(w, "%sso_map_set(%s, %s, ", g.indent(), keyType, valType)
 	g.emitExpr(w, idx.X)
-	fmt.Fprintf(w, ", ")
+	fmt.Fprint(w, ", ")
 	g.emitExpr(w, idx.Index)
-	fmt.Fprintf(w, ", ")
+	fmt.Fprint(w, ", ")
 	g.emitExpr(w, rhs)
-	fmt.Fprintf(w, ");\n")
+	fmt.Fprint(w, ");\n")
 }
 
 // emitMapCommaOk emits a comma-ok map access: v, ok := m[key] or v, ok = m[key].
@@ -89,9 +89,9 @@ func (g *Generator) emitMapCommaOk(w io.Writer, stmt *ast.AssignStmt, idx *ast.I
 		}
 		fmt.Fprintf(w, "%s%s%s = so_map_get(%s, %s, ", g.indent(), vDecl, vIdent.Name, keyType, valType)
 		g.emitExpr(w, idx.X)
-		fmt.Fprintf(w, ", ")
+		fmt.Fprint(w, ", ")
 		g.emitExpr(w, idx.Index)
-		fmt.Fprintf(w, ");\n")
+		fmt.Fprint(w, ");\n")
 	}
 
 	// Emit: [bool] ok = so_map_has(K, &m, key);
@@ -102,9 +102,9 @@ func (g *Generator) emitMapCommaOk(w io.Writer, stmt *ast.AssignStmt, idx *ast.I
 		}
 		fmt.Fprintf(w, "%s%s%s = so_map_has(%s, ", g.indent(), okDecl, okIdent.Name, keyType)
 		g.emitExpr(w, idx.X)
-		fmt.Fprintf(w, ", ")
+		fmt.Fprint(w, ", ")
 		g.emitExpr(w, idx.Index)
-		fmt.Fprintf(w, ");\n")
+		fmt.Fprint(w, ");\n")
 	}
 }
 
@@ -117,14 +117,14 @@ func (g *Generator) emitMapRange(w io.Writer, stmt *ast.RangeStmt) {
 
 	fmt.Fprintf(w, "%sfor (so_int _i = 0; _i < ", g.indent())
 	g.emitExpr(w, stmt.X)
-	fmt.Fprintf(w, "->cap; _i++) {\n")
+	fmt.Fprint(w, "->cap; _i++) {\n")
 
 	g.state.indent++
 
 	// Skip empty slots in hash table.
 	fmt.Fprintf(w, "%sif (!", g.indent())
 	g.emitExpr(w, stmt.X)
-	fmt.Fprintf(w, "->used[_i]) continue;\n")
+	fmt.Fprint(w, "->used[_i]) continue;\n")
 
 	// Emit key variable.
 	if stmt.Key != nil {
@@ -135,7 +135,7 @@ func (g *Generator) emitMapRange(w io.Writer, stmt *ast.RangeStmt) {
 			}
 			fmt.Fprintf(w, "%s%s%s = ((%s*)", g.indent(), keyDecl, keyIdent.Name, keyType)
 			g.emitExpr(w, stmt.X)
-			fmt.Fprintf(w, "->keys)[_i];\n")
+			fmt.Fprint(w, "->keys)[_i];\n")
 		}
 	}
 
@@ -148,7 +148,7 @@ func (g *Generator) emitMapRange(w io.Writer, stmt *ast.RangeStmt) {
 			}
 			fmt.Fprintf(w, "%s%s%s = ((%s*)", g.indent(), valDecl, valIdent.Name, valType)
 			g.emitExpr(w, stmt.X)
-			fmt.Fprintf(w, "->vals)[_i];\n")
+			fmt.Fprint(w, "->vals)[_i];\n")
 		}
 	}
 

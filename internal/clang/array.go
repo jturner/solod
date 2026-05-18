@@ -10,20 +10,20 @@ import (
 // emitArrayLit emits a fixed-size array literal as a C initializer list.
 // Example: [5]int{1, 2, 3, 4, 5} → {1, 2, 3, 4, 5}
 func (g *Generator) emitArrayLit(w io.Writer, n *ast.CompositeLit) {
-	fmt.Fprintf(w, "{")
+	fmt.Fprint(w, "{")
 
 	if hasKeyedElements(n) {
 		g.emitSparseArrayValues(w, n)
 	} else {
 		for i, elt := range n.Elts {
 			if i > 0 {
-				fmt.Fprintf(w, ", ")
+				fmt.Fprint(w, ", ")
 			}
 			g.emitExpr(w, elt)
 		}
 	}
 
-	fmt.Fprintf(w, "}")
+	fmt.Fprint(w, "}")
 }
 
 // emitArrayArg emits an array expression as a function argument.
@@ -46,7 +46,7 @@ func (g *Generator) emitArrayCmpOperand(w io.Writer, expr ast.Expr, arr *types.A
 		elemType := g.mapType(expr, arr.Elem())
 		fmt.Fprintf(w, "((%s%s)", elemType, arrayDims(arr))
 		g.emitExpr(w, expr)
-		fmt.Fprintf(w, ")")
+		fmt.Fprint(w, ")")
 		return
 	}
 	g.emitExpr(w, expr)
@@ -59,13 +59,13 @@ func (g *Generator) emitSliceLit(w io.Writer, n *ast.CompositeLit) {
 	elemType := g.mapType(n, sl.Elem())
 	size := len(n.Elts)
 	if size == 0 {
-		fmt.Fprintf(w, "(so_Slice){0}")
+		fmt.Fprint(w, "(so_Slice){0}")
 		return
 	}
 	fmt.Fprintf(w, "(so_Slice){(%s[%d]){", elemType, size)
 	for i, elt := range n.Elts {
 		if i > 0 {
-			fmt.Fprintf(w, ", ")
+			fmt.Fprint(w, ", ")
 		}
 		g.emitExpr(w, elt)
 	}
@@ -77,12 +77,12 @@ func (g *Generator) emitSliceLit(w io.Writer, n *ast.CompositeLit) {
 func (g *Generator) emitSparseArrayValues(w io.Writer, n *ast.CompositeLit) {
 	for i, elt := range n.Elts {
 		if i > 0 {
-			fmt.Fprintf(w, ", ")
+			fmt.Fprint(w, ", ")
 		}
 		if kv, ok := elt.(*ast.KeyValueExpr); ok {
-			fmt.Fprintf(w, "[")
+			fmt.Fprint(w, "[")
 			g.emitExpr(w, kv.Key)
-			fmt.Fprintf(w, "] = ")
+			fmt.Fprint(w, "] = ")
 			g.emitExpr(w, kv.Value)
 		} else {
 			g.emitExpr(w, elt)
@@ -114,28 +114,28 @@ func (g *Generator) emitSliceExpr(w io.Writer, n *ast.SliceExpr) {
 			fmt.Fprintf(w, "so_array_slice(%s, ", elemType)
 		}
 		if ptrDeref {
-			fmt.Fprintf(w, "(*")
+			fmt.Fprint(w, "(*")
 			g.emitExpr(w, n.X)
-			fmt.Fprintf(w, ")")
+			fmt.Fprint(w, ")")
 		} else {
 			g.emitExpr(w, n.X)
 		}
-		fmt.Fprintf(w, ", ")
+		fmt.Fprint(w, ", ")
 		if n.Low != nil {
 			g.emitExpr(w, n.Low)
 		} else {
-			fmt.Fprintf(w, "0")
+			fmt.Fprint(w, "0")
 		}
-		fmt.Fprintf(w, ", ")
+		fmt.Fprint(w, ", ")
 		if n.High != nil {
 			g.emitExpr(w, n.High)
 		} else {
 			fmt.Fprintf(w, "%d", t.Len())
 		}
 		if n.Slice3 {
-			fmt.Fprintf(w, ", ")
+			fmt.Fprint(w, ", ")
 			g.emitExpr(w, n.Max)
-			fmt.Fprintf(w, ")")
+			fmt.Fprint(w, ")")
 		} else {
 			fmt.Fprintf(w, ", %d)", t.Len())
 		}
@@ -145,22 +145,22 @@ func (g *Generator) emitSliceExpr(w io.Writer, n *ast.SliceExpr) {
 			g.fail(n, "unsupported slice expression on basic type: %s", t)
 			break
 		}
-		fmt.Fprintf(w, "so_string_slice(")
+		fmt.Fprint(w, "so_string_slice(")
 		g.emitExpr(w, n.X)
-		fmt.Fprintf(w, ", ")
+		fmt.Fprint(w, ", ")
 		if n.Low != nil {
 			g.emitExpr(w, n.Low)
 		} else {
-			fmt.Fprintf(w, "0")
+			fmt.Fprint(w, "0")
 		}
-		fmt.Fprintf(w, ", ")
+		fmt.Fprint(w, ", ")
 		if n.High != nil {
 			g.emitExpr(w, n.High)
 		} else {
 			g.emitExpr(w, n.X)
-			fmt.Fprintf(w, ".len")
+			fmt.Fprint(w, ".len")
 		}
-		fmt.Fprintf(w, ")")
+		fmt.Fprint(w, ")")
 
 	case *types.Slice:
 		elemType := g.mapType(n, t.Elem())
@@ -170,24 +170,24 @@ func (g *Generator) emitSliceExpr(w io.Writer, n *ast.SliceExpr) {
 			fmt.Fprintf(w, "so_slice(%s, ", elemType)
 		}
 		g.emitExpr(w, n.X)
-		fmt.Fprintf(w, ", ")
+		fmt.Fprint(w, ", ")
 		if n.Low != nil {
 			g.emitExpr(w, n.Low)
 		} else {
-			fmt.Fprintf(w, "0")
+			fmt.Fprint(w, "0")
 		}
-		fmt.Fprintf(w, ", ")
+		fmt.Fprint(w, ", ")
 		if n.High != nil {
 			g.emitExpr(w, n.High)
 		} else {
 			g.emitExpr(w, n.X)
-			fmt.Fprintf(w, ".len")
+			fmt.Fprint(w, ".len")
 		}
 		if n.Slice3 {
-			fmt.Fprintf(w, ", ")
+			fmt.Fprint(w, ", ")
 			g.emitExpr(w, n.Max)
 		}
-		fmt.Fprintf(w, ")")
+		fmt.Fprint(w, ")")
 
 	default:
 		g.fail(n, "unsupported slice expression type: %T", t)

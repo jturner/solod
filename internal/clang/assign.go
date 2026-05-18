@@ -27,20 +27,20 @@ func (g *Generator) emitAssignStmt(w io.Writer, stmt *ast.AssignStmt) {
 		}
 		// String += uses so_string_add.
 		if stmt.Tok == token.ADD_ASSIGN && g.hasStringType(stmt.Lhs[0]) {
-			fmt.Fprintf(w, "%s", g.indent())
+			fmt.Fprint(w, g.indent())
 			g.emitExpr(w, stmt.Lhs[0])
-			fmt.Fprintf(w, " = so_string_add(")
+			fmt.Fprint(w, " = so_string_add(")
 			g.emitExpr(w, stmt.Lhs[0])
-			fmt.Fprintf(w, ", ")
+			fmt.Fprint(w, ", ")
 			g.emitExpr(w, stmt.Rhs[0])
-			fmt.Fprintf(w, ");\n")
+			fmt.Fprint(w, ");\n")
 			return
 		}
-		fmt.Fprintf(w, "%s", g.indent())
+		fmt.Fprint(w, g.indent())
 		g.emitExpr(w, stmt.Lhs[0])
 		fmt.Fprintf(w, " %s ", stmt.Tok)
 		g.emitExpr(w, stmt.Rhs[0])
-		fmt.Fprintf(w, ";\n")
+		fmt.Fprint(w, ";\n")
 
 	default:
 		g.fail(stmt, "unsupported AssignStmt token: %s", stmt.Tok)
@@ -113,7 +113,7 @@ func (g *Generator) emitDefine(w io.Writer, stmt *ast.AssignStmt) {
 			typ := g.types.Uses[ident].Type()
 			fmt.Fprintf(w, "%s%s = ", g.indent(), ident.Name)
 			g.emitExprAsType(w, stmt, stmt.Rhs[i], typ)
-			fmt.Fprintf(w, ";\n")
+			fmt.Fprint(w, ";\n")
 			i++
 			continue
 		}
@@ -127,7 +127,7 @@ func (g *Generator) emitDefine(w io.Writer, stmt *ast.AssignStmt) {
 				// Composite literal: so_int d[3] = {1, 2, 3};
 				fmt.Fprintf(w, "%s%s = ", g.indent(), ct.Decl(ident.Name))
 				g.emitExpr(w, stmt.Rhs[i])
-				fmt.Fprintf(w, ";\n")
+				fmt.Fprint(w, ";\n")
 			} else {
 				// Variable: declaration + memcpy.
 				fmt.Fprintf(w, "%s%s;\n", g.indent(), ct.Decl(ident.Name))
@@ -164,7 +164,7 @@ func (g *Generator) emitDefine(w io.Writer, stmt *ast.AssignStmt) {
 			g.emitExpr(w, stmt.Rhs[i])
 			i++
 		}
-		fmt.Fprintf(w, ";\n")
+		fmt.Fprint(w, ";\n")
 	}
 }
 
@@ -209,13 +209,13 @@ func (g *Generator) emitAssign(w io.Writer, stmt *ast.AssignStmt) {
 		if ident, ok := lhs.(*ast.Ident); ok && ident.Name == "_" {
 			fmt.Fprintf(w, "%s(void)", g.indent())
 			if g.needsVoidParens(stmt.Rhs[i]) {
-				fmt.Fprintf(w, "(")
+				fmt.Fprint(w, "(")
 				g.emitExpr(w, stmt.Rhs[i])
-				fmt.Fprintf(w, ")")
+				fmt.Fprint(w, ")")
 			} else {
 				g.emitExpr(w, stmt.Rhs[i])
 			}
-			fmt.Fprintf(w, ";\n")
+			fmt.Fprint(w, ";\n")
 			continue
 		}
 
@@ -232,25 +232,25 @@ func (g *Generator) emitAssign(w io.Writer, stmt *ast.AssignStmt) {
 		if arr, ok := lhsType.Underlying().(*types.Array); ok {
 			fmt.Fprintf(w, "%smemcpy(", g.indent())
 			g.emitExpr(w, lhs)
-			fmt.Fprintf(w, ", ")
+			fmt.Fprint(w, ", ")
 			if _, isLit := stmt.Rhs[i].(*ast.CompositeLit); isLit {
 				// Compound literal: (int[3]){1, 2, 3}
 				elemType := g.mapType(stmt, arr.Elem())
 				fmt.Fprintf(w, "(%s%s)", elemType, arrayDims(arr))
 			}
 			g.emitExpr(w, stmt.Rhs[i])
-			fmt.Fprintf(w, ", sizeof(")
+			fmt.Fprint(w, ", sizeof(")
 			g.emitExpr(w, lhs)
-			fmt.Fprintf(w, "));\n")
+			fmt.Fprint(w, "));\n")
 			continue
 		}
 
 		// Non-array assignment.
-		fmt.Fprintf(w, "%s", g.indent())
+		fmt.Fprint(w, g.indent())
 		g.emitExpr(w, lhs)
-		fmt.Fprintf(w, " = ")
+		fmt.Fprint(w, " = ")
 		g.emitExprAsType(w, stmt, stmt.Rhs[i], lhsType)
-		fmt.Fprintf(w, ";\n")
+		fmt.Fprint(w, ";\n")
 	}
 }
 

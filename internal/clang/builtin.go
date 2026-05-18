@@ -55,7 +55,7 @@ func (g *Generator) emitBuiltin(w io.Writer, call *ast.CallExpr, ident *ast.Iden
 	if bi.Name() == "len" && len(call.Args) == 1 {
 		if _, ok := g.types.TypeOf(call.Args[0]).Underlying().(*types.Map); ok {
 			g.emitExpr(w, call.Args[0])
-			fmt.Fprintf(w, "->len")
+			fmt.Fprint(w, "->len")
 			return true
 		}
 	}
@@ -76,26 +76,26 @@ func (g *Generator) emitAppendCall(w io.Writer, call *ast.CallExpr) {
 			// Appending a string to a byte slice (e.g. append(dst, str...)).
 			fmt.Fprintf(w, "so_extend(%s, ", elemType)
 			g.emitExpr(w, call.Args[0])
-			fmt.Fprintf(w, ", so_string_bytes(")
+			fmt.Fprint(w, ", so_string_bytes(")
 			g.emitExpr(w, call.Args[1])
-			fmt.Fprintf(w, "))")
+			fmt.Fprint(w, "))")
 		} else {
 			// Appending a slice (e.g. append(dst, src...)).
 			fmt.Fprintf(w, "so_extend(%s, ", elemType)
 			g.emitExpr(w, call.Args[0])
-			fmt.Fprintf(w, ", (")
+			fmt.Fprint(w, ", (")
 			g.emitExpr(w, call.Args[1])
-			fmt.Fprintf(w, "))")
+			fmt.Fprint(w, "))")
 		}
 	} else {
 		// Appending individual values (e.g. append(dst, v1, v2, v3)).
 		fmt.Fprintf(w, "so_append(%s, ", elemType)
 		g.emitExpr(w, call.Args[0])
 		for _, arg := range call.Args[1:] {
-			fmt.Fprintf(w, ", ")
+			fmt.Fprint(w, ", ")
 			g.emitExpr(w, arg)
 		}
-		fmt.Fprintf(w, ")")
+		fmt.Fprint(w, ")")
 	}
 }
 
@@ -109,7 +109,7 @@ func (g *Generator) emitClearCall(w io.Writer, call *ast.CallExpr) {
 	elemType := g.mapType(call, sliceType.Elem())
 	fmt.Fprintf(w, "so_clear(%s, ", elemType)
 	g.emitExpr(w, call.Args[0])
-	fmt.Fprintf(w, ")")
+	fmt.Fprint(w, ")")
 }
 
 // emitCopyCall emits a copy() builtin call as so_copy(T, dst, src).
@@ -117,11 +117,11 @@ func (g *Generator) emitCopyCall(w io.Writer, call *ast.CallExpr) {
 	srcType := g.types.TypeOf(call.Args[1]).Underlying()
 	if basic, ok := srcType.(*types.Basic); ok && basic.Info()&types.IsString != 0 {
 		// copy([]byte, string) - copy bytes directly from string.
-		fmt.Fprintf(w, "so_copy_string(")
+		fmt.Fprint(w, "so_copy_string(")
 		g.emitExpr(w, call.Args[0])
-		fmt.Fprintf(w, ", ")
+		fmt.Fprint(w, ", ")
 		g.emitExpr(w, call.Args[1])
-		fmt.Fprintf(w, ")")
+		fmt.Fprint(w, ")")
 		return
 	}
 	// copy([]T, []T) - copy elements of any slice type.
@@ -129,9 +129,9 @@ func (g *Generator) emitCopyCall(w io.Writer, call *ast.CallExpr) {
 	elemType := g.mapType(call, dstType.Elem())
 	fmt.Fprintf(w, "so_copy(%s, ", elemType)
 	g.emitExpr(w, call.Args[0])
-	fmt.Fprintf(w, ", ")
+	fmt.Fprint(w, ", ")
 	g.emitExpr(w, call.Args[1])
-	fmt.Fprintf(w, ")")
+	fmt.Fprint(w, ")")
 }
 
 // emitMakeCall emits a make() builtin call for slices or maps.
@@ -143,13 +143,13 @@ func (g *Generator) emitMakeCall(w io.Writer, call *ast.CallExpr) {
 		elemType := g.mapType(call, t.Elem())
 		fmt.Fprintf(w, "so_make_slice(%s, ", elemType)
 		g.emitExpr(w, call.Args[1])
-		fmt.Fprintf(w, ", ")
+		fmt.Fprint(w, ", ")
 		if len(call.Args) >= 3 {
 			g.emitExpr(w, call.Args[2])
 		} else {
 			g.emitExpr(w, call.Args[1])
 		}
-		fmt.Fprintf(w, ")")
+		fmt.Fprint(w, ")")
 
 	case *types.Map:
 		g.validateMapValueType(call, t.Elem())
@@ -157,7 +157,7 @@ func (g *Generator) emitMakeCall(w io.Writer, call *ast.CallExpr) {
 		valType := g.mapType(call, t.Elem())
 		fmt.Fprintf(w, "so_make_map(%s, %s, ", keyType, valType)
 		g.emitExpr(w, call.Args[1])
-		fmt.Fprintf(w, ")")
+		fmt.Fprint(w, ")")
 
 	default:
 		g.fail(call, "make() unsupported type: %s", typ)
@@ -192,9 +192,9 @@ func (g *Generator) emitMinMaxCall(w io.Writer, call *ast.CallExpr, name string)
 	}
 	g.emitExpr(w, call.Args[0])
 	for _, arg := range call.Args[1:] {
-		fmt.Fprintf(w, ", ")
+		fmt.Fprint(w, ", ")
 		g.emitExpr(w, arg)
-		fmt.Fprintf(w, ")")
+		fmt.Fprint(w, ")")
 	}
 }
 
@@ -209,7 +209,7 @@ func (g *Generator) emitNewCall(w io.Writer, call *ast.CallExpr) {
 	}
 	if _, ok := call.Args[0].(*ast.CompositeLit); ok {
 		// new(T{...}) - addressed composite literal.
-		fmt.Fprintf(w, "&")
+		fmt.Fprint(w, "&")
 		g.emitExpr(w, call.Args[0])
 		return
 	}
@@ -221,7 +221,7 @@ func (g *Generator) emitNewCall(w io.Writer, call *ast.CallExpr) {
 	elemType := g.types.TypeOf(call).(*types.Pointer).Elem()
 	if _, ok := elemType.Underlying().(*types.Struct); ok {
 		// Struct: take address directly.
-		fmt.Fprintf(w, "&")
+		fmt.Fprint(w, "&")
 		g.emitExpr(w, call.Args[0])
 		return
 	}
@@ -229,7 +229,7 @@ func (g *Generator) emitNewCall(w io.Writer, call *ast.CallExpr) {
 	cType := g.mapType(call, elemType)
 	fmt.Fprintf(w, "&(%s){", cType)
 	g.emitExpr(w, call.Args[0])
-	fmt.Fprintf(w, "}")
+	fmt.Fprint(w, "}")
 }
 
 // isPanicCall reports whether an expression is a call to the panic builtin.
@@ -253,9 +253,9 @@ func (g *Generator) emitPanicCall(w io.Writer, call *ast.CallExpr) {
 	if !g.hasStringType(arg) && !isErrorType(typ) {
 		g.fail(call, "panic() only supports string and error arguments, got %s", typ)
 	}
-	fmt.Fprintf(w, "so_panic(")
+	fmt.Fprint(w, "so_panic(")
 	g.emitCArg(w, arg)
-	fmt.Fprintf(w, ")")
+	fmt.Fprint(w, ")")
 }
 
 // emitPrintCall emits a print/println call with an auto-generated format string.
@@ -267,23 +267,23 @@ func (g *Generator) emitPrintCall(w io.Writer, call *ast.CallExpr, name string) 
 	format := g.buildFormatString(call)
 	fmt.Fprintf(w, "so_%s(%s", name, format)
 	for _, arg := range call.Args {
-		fmt.Fprintf(w, ", ")
+		fmt.Fprint(w, ", ")
 		if g.hasStringType(arg) {
 			if lit, ok := arg.(*ast.BasicLit); ok && lit.Kind == token.STRING {
 				// String literal: emit as a simple C string.
-				fmt.Fprintf(w, "%s", rawStringValue(lit))
+				fmt.Fprint(w, rawStringValue(lit))
 			} else {
 				// String expression: emit expr.len, expr.ptr
 				g.emitExpr(w, arg)
-				fmt.Fprintf(w, ".len, ")
+				fmt.Fprint(w, ".len, ")
 				g.emitExpr(w, arg)
-				fmt.Fprintf(w, ".ptr")
+				fmt.Fprint(w, ".ptr")
 			}
 		} else {
 			g.emitCArg(w, arg)
 		}
 	}
-	fmt.Fprintf(w, ")")
+	fmt.Fprint(w, ")")
 }
 
 // buildFormatString constructs a C format string for the given print/println call,

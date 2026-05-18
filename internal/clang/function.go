@@ -247,7 +247,7 @@ func (g *Generator) emitFuncBody(w io.Writer, decl *ast.FuncDecl) {
 		}
 	}
 	g.state.indent--
-	fmt.Fprintf(w, "}\n")
+	fmt.Fprint(w, "}\n")
 
 	// Reset state.
 	g.state.defers = nil
@@ -268,9 +268,9 @@ func (g *Generator) emitFuncCall(w io.Writer, call *ast.CallExpr) {
 		g.emitExpr(w, call.Fun)
 	}
 
-	fmt.Fprintf(w, "(")
+	fmt.Fprint(w, "(")
 	g.emitFuncCallArgs(w, call)
-	fmt.Fprintf(w, ")")
+	fmt.Fprint(w, ")")
 }
 
 // emitFuncCallArgs emits the arguments for a function call.
@@ -302,7 +302,7 @@ func (g *Generator) emitFuncCallArgs(w io.Writer, call *ast.CallExpr) {
 	// Regular call: emit all args as-is.
 	for i, arg := range call.Args {
 		if i > 0 {
-			fmt.Fprintf(w, ", ")
+			fmt.Fprint(w, ", ")
 		}
 		if sig != nil && i < sig.Params().Len() {
 			paramType := sig.Params().At(i).Type()
@@ -323,7 +323,7 @@ func (g *Generator) emitFixedArgs(w io.Writer, call *ast.CallExpr, sig *types.Si
 	fixedCount := sig.Params().Len() - 1
 	for i := 0; i < fixedCount && i < len(call.Args); i++ {
 		if i > 0 {
-			fmt.Fprintf(w, ", ")
+			fmt.Fprint(w, ", ")
 		}
 		g.emitExprAsType(w, call, call.Args[i], sig.Params().At(i).Type())
 	}
@@ -335,7 +335,7 @@ func (g *Generator) emitVariadicArgs(w io.Writer, call *ast.CallExpr, sig *types
 	variadicArgs := call.Args[fixedCount:]
 
 	if fixedCount > 0 {
-		fmt.Fprintf(w, ", ")
+		fmt.Fprint(w, ", ")
 	}
 
 	variadicParam := sig.Params().At(sig.Params().Len() - 1)
@@ -346,7 +346,7 @@ func (g *Generator) emitVariadicArgs(w io.Writer, call *ast.CallExpr, sig *types
 	targetType := variadicParam.Type().(*types.Slice).Elem()
 	for i, arg := range variadicArgs {
 		if i > 0 {
-			fmt.Fprintf(w, ", ")
+			fmt.Fprint(w, ", ")
 		}
 		g.emitExprAsType(w, call, arg, targetType)
 	}
@@ -361,7 +361,7 @@ func (g *Generator) emitCArgs(w io.Writer, call *ast.CallExpr) {
 	}
 	for i, arg := range call.Args {
 		if i > 0 {
-			fmt.Fprintf(w, ", ")
+			fmt.Fprint(w, ", ")
 		}
 		// Interface-typed parameters (e.g. Allocator) need emitExprAsType
 		// to convert nil to a zero-initialized struct instead of NULL.
@@ -377,19 +377,19 @@ func (g *Generator) emitCArgs(w io.Writer, call *ast.CallExpr) {
 // string literals to raw C strings, strings to char*, slices to void*.
 func (g *Generator) emitCArg(w io.Writer, arg ast.Expr) {
 	if lit, ok := arg.(*ast.BasicLit); ok && lit.Kind == token.STRING {
-		fmt.Fprintf(w, "%s", rawStringValue(lit))
+		fmt.Fprint(w, rawStringValue(lit))
 	} else if g.hasStringType(arg) {
-		fmt.Fprintf(w, "so_cstr(")
+		fmt.Fprint(w, "so_cstr(")
 		g.emitExpr(w, arg)
-		fmt.Fprintf(w, ")")
+		fmt.Fprint(w, ")")
 	} else if _, ok := g.types.TypeOf(arg).Underlying().(*types.Slice); ok {
-		fmt.Fprintf(w, "so_decay(")
+		fmt.Fprint(w, "so_decay(")
 		g.emitExpr(w, arg)
-		fmt.Fprintf(w, ")")
+		fmt.Fprint(w, ")")
 	} else if isErrorType(g.types.TypeOf(arg)) {
-		fmt.Fprintf(w, "so_error_cstr(")
+		fmt.Fprint(w, "so_error_cstr(")
 		g.emitExpr(w, arg)
-		fmt.Fprintf(w, ")")
+		fmt.Fprint(w, ")")
 	} else {
 		g.emitExpr(w, arg)
 	}

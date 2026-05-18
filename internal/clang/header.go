@@ -157,7 +157,7 @@ func (g *Generator) emitHeaderGenDecl(w io.Writer, decl *ast.GenDecl, dirs direc
 				} else {
 					g.emitExpr(w, vs.Values[i])
 				}
-				fmt.Fprintf(w, ";\n")
+				fmt.Fprint(w, ";\n")
 			case token.VAR:
 				// Build qualifier prefix for extern declarations.
 				qualifier := ""

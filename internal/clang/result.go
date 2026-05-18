@@ -119,7 +119,7 @@ func (g *Generator) emitMultiReturnDefine(w io.Writer, stmt *ast.AssignStmt, cal
 	tmp := fmt.Sprintf("_res%d", g.state.tempCount)
 	fmt.Fprintf(w, "%s%s %s = ", g.indent(), multi.typeName(), tmp)
 	g.emitExpr(w, call)
-	fmt.Fprintf(w, ";\n")
+	fmt.Fprint(w, ";\n")
 
 	// Emit individual variable declarations from result fields.
 	for i, lhs := range stmt.Lhs {
@@ -155,7 +155,7 @@ func (g *Generator) emitMultiReturnAssign(w io.Writer, stmt *ast.AssignStmt, cal
 	tmp := fmt.Sprintf("_res%d", g.state.tempCount)
 	fmt.Fprintf(w, "%s%s %s = ", g.indent(), multi.typeName(), tmp)
 	g.emitExpr(w, call)
-	fmt.Fprintf(w, ";\n")
+	fmt.Fprint(w, ";\n")
 
 	// Emit assignments from result fields.
 	for i, lhs := range stmt.Lhs {
@@ -163,7 +163,7 @@ func (g *Generator) emitMultiReturnAssign(w io.Writer, stmt *ast.AssignStmt, cal
 			continue
 		}
 		accessor := multi.accessor(tmp, i)
-		fmt.Fprintf(w, "%s", g.indent())
+		fmt.Fprint(w, g.indent())
 		g.emitExpr(w, lhs)
 		fmt.Fprintf(w, " = %s;\n", accessor)
 	}

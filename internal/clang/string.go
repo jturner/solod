@@ -18,10 +18,10 @@ func (g *Generator) emitStringLit(w io.Writer, n *ast.BasicLit) {
 func (g *Generator) emitStringLitConcat(w io.Writer, expr ast.Expr) {
 	switch e := expr.(type) {
 	case *ast.BasicLit:
-		fmt.Fprintf(w, "%s", rawStringValue(e))
+		fmt.Fprint(w, rawStringValue(e))
 	case *ast.BinaryExpr:
 		g.emitStringLitConcat(w, e.X)
-		fmt.Fprintf(w, " ")
+		fmt.Fprint(w, " ")
 		g.emitStringLitConcat(w, e.Y)
 	}
 }

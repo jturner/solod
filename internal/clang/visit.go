@@ -142,9 +142,9 @@ func (g *Generator) emitExprStmt(w io.Writer, stmt *ast.ExprStmt) {
 		}
 		return
 	}
-	fmt.Fprintf(w, "%s", g.indent())
+	fmt.Fprint(w, g.indent())
 	g.emitExpr(w, stmt.X)
-	fmt.Fprintf(w, ";\n")
+	fmt.Fprint(w, ";\n")
 }
 
 // emitForStmt emits a for statement.
@@ -154,20 +154,20 @@ func (g *Generator) emitForStmt(w io.Writer, stmt *ast.ForStmt) {
 	if stmt.Init != nil {
 		g.emitForClause(w, stmt.Init)
 	}
-	fmt.Fprintf(w, ";")
+	fmt.Fprint(w, ";")
 
 	if stmt.Cond != nil {
-		fmt.Fprintf(w, " ")
+		fmt.Fprint(w, " ")
 		g.emitExpr(w, stmt.Cond)
 	}
-	fmt.Fprintf(w, ";")
+	fmt.Fprint(w, ";")
 
 	if stmt.Post != nil {
-		fmt.Fprintf(w, " ")
+		fmt.Fprint(w, " ")
 		g.emitForClause(w, stmt.Post)
 	}
 
-	fmt.Fprintf(w, ") {\n")
+	fmt.Fprint(w, ") {\n")
 	g.emitBlock(w, stmt.Body)
 	fmt.Fprintf(w, "%s}\n", g.indent())
 }
@@ -189,7 +189,7 @@ func (g *Generator) emitForClause(w io.Writer, stmt ast.Stmt) {
 		}
 	case *ast.IncDecStmt:
 		g.emitExpr(w, s.X)
-		fmt.Fprintf(w, "%s", s.Tok)
+		fmt.Fprint(w, s.Tok)
 	case *ast.ExprStmt:
 		g.emitExpr(w, s.X)
 	default:
@@ -271,7 +271,7 @@ func (g *Generator) emitConstSpec(w io.Writer, spec *ast.ValueSpec) {
 		} else {
 			g.emitExpr(w, spec.Values[i])
 		}
-		fmt.Fprintf(w, ";\n")
+		fmt.Fprint(w, ";\n")
 	}
 }
 
@@ -324,7 +324,7 @@ func (g *Generator) emitVarSpec(w io.Writer, spec *ast.ValueSpec, dirs directive
 			if len(spec.Values) > i {
 				g.emitExprAsType(w, spec, spec.Values[i], typ)
 			} else {
-				fmt.Fprintf(w, "%s", g.zeroValue(spec, typ))
+				fmt.Fprint(w, g.zeroValue(spec, typ))
 			}
 			i++
 			for i < len(spec.Names) {
@@ -341,11 +341,11 @@ func (g *Generator) emitVarSpec(w io.Writer, spec *ast.ValueSpec, dirs directive
 				if len(spec.Values) > i {
 					g.emitExprAsType(w, spec, spec.Values[i], nextTyp)
 				} else {
-					fmt.Fprintf(w, "%s", g.zeroValue(spec, nextTyp))
+					fmt.Fprint(w, g.zeroValue(spec, nextTyp))
 				}
 				i++
 			}
-			fmt.Fprintf(w, ";\n")
+			fmt.Fprint(w, ";\n")
 		}
 		return
 	}
@@ -378,7 +378,7 @@ func (g *Generator) emitVarSpec(w io.Writer, spec *ast.ValueSpec, dirs directive
 			// Has explicit initializer.
 			fmt.Fprintf(w, "%s%s%s = ", g.indent(), specifier, ct.Decl(cName))
 			g.emitExprAsType(w, spec, spec.Values[i], typ)
-			fmt.Fprintf(w, ";\n")
+			fmt.Fprint(w, ";\n")
 		} else {
 			// No initializer, emit zero value.
 			zeroVal := g.zeroValue(spec, typ)
@@ -453,7 +453,7 @@ func (g *Generator) emitIfInner(w io.Writer, stmt *ast.IfStmt, prefix string) {
 	// Emit the if condition and body.
 	fmt.Fprintf(w, "%sif (", prefix)
 	g.emitExpr(w, stmt.Cond)
-	fmt.Fprintf(w, ") {\n")
+	fmt.Fprint(w, ") {\n")
 	g.emitBlock(w, stmt.Body)
 	if stmt.Else == nil {
 		fmt.Fprintf(w, "%s}\n", g.indent())
@@ -476,7 +476,7 @@ func (g *Generator) emitIfInner(w io.Writer, stmt *ast.IfStmt, prefix string) {
 
 // emitIncDecStmt emits an increment or decrement statement.
 func (g *Generator) emitIncDecStmt(w io.Writer, stmt *ast.IncDecStmt) {
-	fmt.Fprintf(w, "%s", g.indent())
+	fmt.Fprint(w, g.indent())
 	g.emitExpr(w, stmt.X)
 	fmt.Fprintf(w, "%s;\n", stmt.Tok)
 }
@@ -529,9 +529,9 @@ func (g *Generator) emitReturnStmt(w io.Writer, stmt *ast.ReturnStmt) {
 	if g.state.inMacro {
 		// In macro mode: "return X" becomes just "X;", void return is a no-op.
 		if len(stmt.Results) > 0 {
-			fmt.Fprintf(w, "%s", g.indent())
+			fmt.Fprint(w, g.indent())
 			g.emitReturnExpr(w, stmt)
-			fmt.Fprintf(w, ";\n")
+			fmt.Fprint(w, ";\n")
 		}
 		return
 	}
@@ -545,7 +545,7 @@ func (g *Generator) emitReturnStmt(w io.Writer, stmt *ast.ReturnStmt) {
 
 	fmt.Fprintf(w, "%sreturn ", g.indent())
 	g.emitReturnExpr(w, stmt)
-	fmt.Fprintf(w, ";\n")
+	fmt.Fprint(w, ";\n")
 }
 
 // emitReturnExpr emits the return value expression (without "return" keyword or ";").
@@ -563,23 +563,23 @@ func (g *Generator) emitReturnExpr(w io.Writer, stmt *ast.ReturnStmt) {
 	if info.resultType != "" {
 		fmt.Fprintf(w, "(%s){.val = ", info.resultType)
 		g.emitExpr(w, stmt.Results[0])
-		fmt.Fprintf(w, ", .err = ")
+		fmt.Fprint(w, ", .err = ")
 		errType := g.state.funcSig.Results().At(1).Type()
 		g.emitExprAsType(w, stmt, stmt.Results[1], errType)
-		fmt.Fprintf(w, "}")
+		fmt.Fprint(w, "}")
 		return
 	}
 	fmt.Fprintf(w, "(%s){.val = ", info.typeName())
 	g.emitExpr(w, stmt.Results[0])
 	if info.hasError {
-		fmt.Fprintf(w, ", .err = ")
+		fmt.Fprint(w, ", .err = ")
 		errType := g.state.funcSig.Results().At(1).Type()
 		g.emitExprAsType(w, stmt, stmt.Results[1], errType)
 	} else {
-		fmt.Fprintf(w, ", .val2 = ")
+		fmt.Fprint(w, ", .val2 = ")
 		g.emitExpr(w, stmt.Results[1])
 	}
-	fmt.Fprintf(w, "}")
+	fmt.Fprint(w, "}")
 }
 
 // emitComments looks up comments for the given nodes from the CommentMap,

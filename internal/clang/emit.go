@@ -103,7 +103,7 @@ func newGenerator(pkg *packages.Package) *Generator {
 
 // emitHeader creates the .h file with typedefs, includes, and extern declarations.
 func (g *Generator) emitHeader(w io.Writer) {
-	fmt.Fprintf(w, "#pragma once\n")
+	fmt.Fprint(w, "#pragma once\n")
 	fmt.Fprintf(w, "#include \"so/builtin/builtin.h\"\n")
 	for _, inc := range g.includes.header {
 		fmt.Fprintf(w, "#include %s\n", inc)
@@ -171,7 +171,7 @@ func (g *Generator) emitInitFunc(w io.Writer) {
 	g.walkStmts(w, decl.Body.List)
 	g.emitDeferredCalls(w)
 	g.state.indent--
-	fmt.Fprintf(w, "}\n")
+	fmt.Fprint(w, "}\n")
 
 	g.state.defers = nil
 	g.state.funcSig = nil

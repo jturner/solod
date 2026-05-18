@@ -15,7 +15,7 @@ func (g *Generator) emitInterfaceTypeSpec(w io.Writer, spec *ast.TypeSpec) {
 	iface := typ.Underlying().(*types.Interface)
 	cName := g.declSymbolName(g.types.Defs[spec.Name])
 	fmt.Fprintf(w, "typedef struct %s {\n", cName)
-	fmt.Fprintf(w, "    void* self;\n")
+	fmt.Fprint(w, "    void* self;\n")
 	for m := range iface.Methods() {
 		sig := m.Type().(*types.Signature)
 		retType := g.returnType(spec, sig)
@@ -59,7 +59,7 @@ func (g *Generator) emitInterfaceLit(w io.Writer, ifaceType types.Type, expr ast
 	for m := range iface.Methods() {
 		fmt.Fprintf(w, ", .%s = %s_%s", m.Name(), cConcrete, m.Name())
 	}
-	fmt.Fprintf(w, "}")
+	fmt.Fprint(w, "}")
 }
 
 // emitTypeAssertion emits a comma-ok type assertion (e.g. _, ok := s.(Rect)).
@@ -113,12 +113,12 @@ func (g *Generator) emitTypeAssertExpr(w io.Writer, n *ast.TypeAssertExpr) {
 		// Pointer assertion: ival.(*Type) → (Type*)ival.self
 		fmt.Fprintf(w, "(%s*)", cConcrete)
 		g.emitExpr(w, n.X)
-		fmt.Fprintf(w, ".self")
+		fmt.Fprint(w, ".self")
 	} else {
 		// Value assertion: ival.(Type) → *((Type*)ival.self)
 		fmt.Fprintf(w, "*((%s*)", cConcrete)
 		g.emitExpr(w, n.X)
-		fmt.Fprintf(w, ".self)")
+		fmt.Fprint(w, ".self)")
 	}
 }
 
@@ -127,7 +127,7 @@ func (g *Generator) emitAnyValue(w io.Writer, node ast.Node, expr ast.Expr) {
 	valType := g.types.TypeOf(expr)
 	if basic, ok := valType.(*types.Basic); ok && basic.Kind() == types.UntypedNil {
 		// Nil values pass as NULL.
-		fmt.Fprintf(w, "NULL")
+		fmt.Fprint(w, "NULL")
 		return
 	}
 
@@ -155,7 +155,7 @@ func (g *Generator) emitAnyValue(w io.Writer, node ast.Node, expr ast.Expr) {
 	}
 
 	if addressable {
-		fmt.Fprintf(w, "&")
+		fmt.Fprint(w, "&")
 		g.emitExpr(w, expr)
 		return
 	}
@@ -163,7 +163,7 @@ func (g *Generator) emitAnyValue(w io.Writer, node ast.Node, expr ast.Expr) {
 	cType := g.mapType(node, valType)
 	fmt.Fprintf(w, "&(%s){", cType)
 	g.emitExpr(w, expr)
-	fmt.Fprintf(w, "}")
+	fmt.Fprint(w, "}")
 }
 
 // isNamedNonEmptyInterface reports whether t is a named non-empty interface.

@@ -49,7 +49,7 @@ func (g *Generator) emitBasicLit(w io.Writer, n *ast.BasicLit) {
 	}
 	if n.Kind == token.CHAR {
 		if basic, ok := g.types.TypeOf(n).(*types.Basic); ok && basic.Kind() == types.Byte {
-			fmt.Fprintf(w, "%s", n.Value)
+			fmt.Fprint(w, n.Value)
 		} else {
 			fmt.Fprintf(w, "U%s", n.Value)
 		}
@@ -64,7 +64,7 @@ func (g *Generator) emitNumericLit(w io.Writer, n *ast.BasicLit) {
 	if n.Kind == token.INT && (strings.HasPrefix(val, "0o") || strings.HasPrefix(val, "0O")) {
 		val = "0" + val[2:]
 	}
-	fmt.Fprintf(w, "%s", val)
+	fmt.Fprint(w, val)
 }
 
 // emitBinaryExpr emits a binary expression.
@@ -74,9 +74,9 @@ func (g *Generator) emitBinaryExpr(w io.Writer, n *ast.BinaryExpr) {
 		if g.hasStringType(n.X) {
 			fmt.Fprintf(w, "%s(", stringCompareFunc(n.Op))
 			g.emitExpr(w, n.X)
-			fmt.Fprintf(w, ", ")
+			fmt.Fprint(w, ", ")
 			g.emitExpr(w, n.Y)
-			fmt.Fprintf(w, ")")
+			fmt.Fprint(w, ")")
 			return
 		}
 	}
@@ -84,16 +84,16 @@ func (g *Generator) emitBinaryExpr(w io.Writer, n *ast.BinaryExpr) {
 	// String addition.
 	if n.Op == token.ADD && g.hasStringType(n.X) {
 		if isStringLit(n.X) && isStringLit(n.Y) {
-			fmt.Fprintf(w, "so_str(")
+			fmt.Fprint(w, "so_str(")
 			g.emitStringLitConcat(w, n)
-			fmt.Fprintf(w, ")")
+			fmt.Fprint(w, ")")
 			return
 		}
-		fmt.Fprintf(w, "so_string_add(")
+		fmt.Fprint(w, "so_string_add(")
 		g.emitExpr(w, n.X)
-		fmt.Fprintf(w, ", ")
+		fmt.Fprint(w, ", ")
 		g.emitExpr(w, n.Y)
-		fmt.Fprintf(w, ")")
+		fmt.Fprint(w, ")")
 		return
 	}
 
@@ -110,7 +110,7 @@ func (g *Generator) emitBinaryExpr(w io.Writer, n *ast.BinaryExpr) {
 			g.emitExpr(w, n.X)
 			fmt.Fprintf(w, ".self %s ", n.Op.String())
 			g.emitExpr(w, n.Y)
-			fmt.Fprintf(w, ".self")
+			fmt.Fprint(w, ".self")
 			return
 		}
 
@@ -137,12 +137,12 @@ func (g *Generator) emitBinaryExpr(w io.Writer, n *ast.BinaryExpr) {
 				g.fail(n, "cannot compare struct call expressions")
 			}
 			if n.Op == token.EQL {
-				fmt.Fprintf(w, "so_mem_eq(&")
+				fmt.Fprint(w, "so_mem_eq(&")
 			} else {
-				fmt.Fprintf(w, "so_mem_ne(&")
+				fmt.Fprint(w, "so_mem_ne(&")
 			}
 			g.emitExpr(w, n.X)
-			fmt.Fprintf(w, ", &")
+			fmt.Fprint(w, ", &")
 			g.emitExpr(w, n.Y)
 			structType := g.mapType(n, g.types.TypeOf(n.X))
 			fmt.Fprintf(w, ", sizeof(%s))", structType)
@@ -152,12 +152,12 @@ func (g *Generator) emitBinaryExpr(w io.Writer, n *ast.BinaryExpr) {
 		// Array comparison: emit so_mem_eq/ne calls.
 		if arr, ok := g.types.TypeOf(n.X).Underlying().(*types.Array); ok {
 			if n.Op == token.EQL {
-				fmt.Fprintf(w, "so_mem_eq(")
+				fmt.Fprint(w, "so_mem_eq(")
 			} else {
-				fmt.Fprintf(w, "so_mem_ne(")
+				fmt.Fprint(w, "so_mem_ne(")
 			}
 			g.emitArrayCmpOperand(w, n.X, arr)
-			fmt.Fprintf(w, ", ")
+			fmt.Fprint(w, ", ")
 			g.emitArrayCmpOperand(w, n.Y, arr)
 			elemType := g.mapType(n, arr.Elem())
 			fmt.Fprintf(w, ", %d * sizeof(%s))", arr.Len(), elemType)
@@ -170,7 +170,7 @@ func (g *Generator) emitBinaryExpr(w io.Writer, n *ast.BinaryExpr) {
 	// Cast integer literal operands to the result type so that e.g. 1 << 63
 	// uses a 64-bit left operand instead of C's 32-bit int.
 	if n.Op == token.SHL || n.Op == token.SHR {
-		fmt.Fprintf(w, "(")
+		fmt.Fprint(w, "(")
 		if lit, ok := n.X.(*ast.BasicLit); ok && lit.Kind == token.INT {
 			cType := g.mapType(n, g.types.TypeOf(n))
 			fmt.Fprintf(w, "(%s)", cType)
@@ -178,17 +178,17 @@ func (g *Generator) emitBinaryExpr(w io.Writer, n *ast.BinaryExpr) {
 		g.emitExpr(w, n.X)
 		fmt.Fprintf(w, " %s ", n.Op.String())
 		g.emitExpr(w, n.Y)
-		fmt.Fprintf(w, ")")
+		fmt.Fprint(w, ")")
 		return
 	}
 
 	// Go's &^ (AND NOT) has no C equivalent — emit & ~ instead.
 	if n.Op == token.AND_NOT {
-		fmt.Fprintf(w, "(")
+		fmt.Fprint(w, "(")
 		g.emitExpr(w, n.X)
-		fmt.Fprintf(w, " & ~")
+		fmt.Fprint(w, " & ~")
 		g.emitExpr(w, n.Y)
-		fmt.Fprintf(w, ")")
+		fmt.Fprint(w, ")")
 		return
 	}
 
@@ -198,11 +198,11 @@ func (g *Generator) emitBinaryExpr(w io.Writer, n *ast.BinaryExpr) {
 	// are below & and +. Without parentheses, expressions like
 	// a & b + c would mean (a & b) + c in Go but a & (b + c) in C.
 	if n.Op == token.AND || n.Op == token.OR || n.Op == token.XOR {
-		fmt.Fprintf(w, "(")
+		fmt.Fprint(w, "(")
 		g.emitExpr(w, n.X)
 		fmt.Fprintf(w, " %s ", n.Op.String())
 		g.emitExpr(w, n.Y)
-		fmt.Fprintf(w, ")")
+		fmt.Fprint(w, ")")
 		return
 	}
 
@@ -216,7 +216,7 @@ func (g *Generator) emitBinaryExpr(w io.Writer, n *ast.BinaryExpr) {
 func (g *Generator) emitCallExpr(w io.Writer, n *ast.CallExpr) {
 	// c.Val intrinsic: emit the string literal as a raw C expression.
 	if raw, ok := g.cIntrinsic(n); ok {
-		fmt.Fprintf(w, "%s", raw)
+		fmt.Fprint(w, raw)
 		return
 	}
 
@@ -277,14 +277,14 @@ func (g *Generator) emitCallExpr(w io.Writer, n *ast.CallExpr) {
 			if argBasic, ok := argType.Underlying().(*types.Basic); ok {
 				switch argBasic.Kind() {
 				case types.Byte:
-					fmt.Fprintf(w, "so_byte_string(")
+					fmt.Fprint(w, "so_byte_string(")
 					g.emitExpr(w, n.Args[0])
-					fmt.Fprintf(w, ")")
+					fmt.Fprint(w, ")")
 					return
 				case types.Int32:
-					fmt.Fprintf(w, "so_rune_string(")
+					fmt.Fprint(w, "so_rune_string(")
 					g.emitExpr(w, n.Args[0])
-					fmt.Fprintf(w, ")")
+					fmt.Fprint(w, ")")
 					return
 				}
 			}
@@ -294,7 +294,7 @@ func (g *Generator) emitCallExpr(w io.Writer, n *ast.CallExpr) {
 		if arrType, ok := tv.Type.Underlying().(*types.Array); ok {
 			argType := g.types.TypeOf(n.Args[0])
 			if _, ok := argType.Underlying().(*types.Slice); ok {
-				fmt.Fprintf(w, "so_slice_array(")
+				fmt.Fprint(w, "so_slice_array(")
 				g.emitExpr(w, n.Args[0])
 				fmt.Fprintf(w, ", %d)", arrType.Len())
 				return
@@ -331,15 +331,15 @@ func (g *Generator) emitGenericCall(w io.Writer, n *ast.CallExpr, fun ast.Expr, 
 	for i, arg := range n.Args {
 		// Wrap args in parens to protect against
 		// the preprocessor misinterpreting commas.
-		fmt.Fprintf(w, ", (")
+		fmt.Fprint(w, ", (")
 		if sig != nil && i < sig.Params().Len() {
 			g.emitExprAsType(w, n, arg, sig.Params().At(i).Type())
 		} else {
 			g.emitExpr(w, arg)
 		}
-		fmt.Fprintf(w, ")")
+		fmt.Fprint(w, ")")
 	}
-	fmt.Fprintf(w, ")")
+	fmt.Fprint(w, ")")
 }
 
 // emitSliceCast emits a string-to-slice conversion ([]byte(s) or []rune(s)).
@@ -347,13 +347,13 @@ func (g *Generator) emitSliceCast(w io.Writer, call *ast.CallExpr, sl *types.Sli
 	elem := sl.Elem().(*types.Basic)
 	switch elem.Kind() {
 	case types.Byte:
-		fmt.Fprintf(w, "so_string_bytes(")
+		fmt.Fprint(w, "so_string_bytes(")
 		g.emitExpr(w, call.Args[0])
-		fmt.Fprintf(w, ")")
+		fmt.Fprint(w, ")")
 	case types.Int32:
-		fmt.Fprintf(w, "so_string_runes(")
+		fmt.Fprint(w, "so_string_runes(")
 		g.emitExpr(w, call.Args[0])
-		fmt.Fprintf(w, ")")
+		fmt.Fprint(w, ")")
 	}
 }
 
@@ -362,13 +362,13 @@ func (g *Generator) emitStringCast(w io.Writer, call *ast.CallExpr, sl *types.Sl
 	elem := sl.Elem().(*types.Basic)
 	switch elem.Kind() {
 	case types.Byte:
-		fmt.Fprintf(w, "so_bytes_string(")
+		fmt.Fprint(w, "so_bytes_string(")
 		g.emitExpr(w, call.Args[0])
-		fmt.Fprintf(w, ")")
+		fmt.Fprint(w, ")")
 	case types.Int32:
-		fmt.Fprintf(w, "so_runes_string(")
+		fmt.Fprint(w, "so_runes_string(")
 		g.emitExpr(w, call.Args[0])
-		fmt.Fprintf(w, ")")
+		fmt.Fprint(w, ")")
 	default:
 		g.fail(call, "unsupported slice-to-string conversion: %s", elem)
 	}
@@ -402,7 +402,7 @@ func (g *Generator) emitCompositeLit(w io.Writer, n *ast.CompositeLit) {
 func (g *Generator) emitIdent(w io.Writer, n *ast.Ident) {
 	name := n.Name
 	if name == "nil" {
-		fmt.Fprintf(w, "NULL")
+		fmt.Fprint(w, "NULL")
 		return
 	}
 	if obj := g.types.Uses[n]; obj != nil {
@@ -417,7 +417,7 @@ func (g *Generator) emitIdent(w io.Writer, n *ast.Ident) {
 		fmt.Fprintf(w, "%s_", name)
 		return
 	}
-	fmt.Fprintf(w, "%s", name)
+	fmt.Fprint(w, name)
 }
 
 // emitParenExpr emits a parenthesized expression.
@@ -426,9 +426,9 @@ func (g *Generator) emitParenExpr(w io.Writer, expr ast.Expr) {
 		g.emitExpr(w, expr)
 		return
 	}
-	fmt.Fprintf(w, "(")
+	fmt.Fprint(w, "(")
 	g.emitExpr(w, expr)
-	fmt.Fprintf(w, ")")
+	fmt.Fprint(w, ")")
 }
 
 // emitSelectorExpr emits a selector expression (e.g. geom.RectArea → geom_RectArea, or p.name).
@@ -438,7 +438,7 @@ func (g *Generator) emitSelectorExpr(w io.Writer, n *ast.SelectorExpr) {
 			// Use the extern C name if the symbol has one
 			// (e.g. math.MaxInt64 → INT64_MAX).
 			if info, ok := g.getExtern(g.types.Uses[n.Sel]); ok && info.name != "" {
-				fmt.Fprintf(w, "%s", info.name)
+				fmt.Fprint(w, info.name)
 				return
 			}
 			// Imported symbols are prefixed with the
@@ -486,7 +486,7 @@ func (g *Generator) emitSelectorExpr(w io.Writer, n *ast.SelectorExpr) {
 
 // emitStarExpr emits a dereference expression (e.g. *p).
 func (g *Generator) emitStarExpr(w io.Writer, n *ast.StarExpr) {
-	fmt.Fprintf(w, "*")
+	fmt.Fprint(w, "*")
 	g.emitExpr(w, n.X)
 }
 
@@ -502,20 +502,20 @@ func (g *Generator) emitIndexExpr(w io.Writer, n *ast.IndexExpr) {
 	// Arrays use direct C indexing.
 	if _, ok := g.types.TypeOf(n.X).Underlying().(*types.Array); ok {
 		g.emitExpr(w, n.X)
-		fmt.Fprintf(w, "[")
+		fmt.Fprint(w, "[")
 		g.emitExpr(w, n.Index)
-		fmt.Fprintf(w, "]")
+		fmt.Fprint(w, "]")
 		return
 	}
 
 	// Pointer-to-array: p[i] becomes (*p)[i].
 	if ptr, ok := g.types.TypeOf(n.X).Underlying().(*types.Pointer); ok {
 		if _, ok := ptr.Elem().Underlying().(*types.Array); ok {
-			fmt.Fprintf(w, "(*")
+			fmt.Fprint(w, "(*")
 			g.emitExpr(w, n.X)
-			fmt.Fprintf(w, ")[")
+			fmt.Fprint(w, ")[")
 			g.emitExpr(w, n.Index)
-			fmt.Fprintf(w, "]")
+			fmt.Fprint(w, "]")
 			return
 		}
 	}
@@ -537,9 +537,9 @@ func (g *Generator) emitIndexExpr(w io.Writer, n *ast.IndexExpr) {
 
 	fmt.Fprintf(w, "so_at(%s, ", elemType)
 	g.emitExpr(w, n.X)
-	fmt.Fprintf(w, ", ")
+	fmt.Fprint(w, ", ")
 	g.emitExpr(w, n.Index)
-	fmt.Fprintf(w, ")")
+	fmt.Fprint(w, ")")
 }
 
 // emitUnaryExpr emits a unary expression.
@@ -559,17 +559,17 @@ func (g *Generator) emitUnaryExpr(w io.Writer, n *ast.UnaryExpr) {
 		}
 		if _, ok := n.X.(*ast.CompositeLit); ok {
 			// &Person{...} → &(Person){...}
-			fmt.Fprintf(w, "&")
+			fmt.Fprint(w, "&")
 			g.emitExpr(w, n.X)
 			return
 		}
 	}
 	if n.Op == token.XOR {
-		fmt.Fprintf(w, "~")
+		fmt.Fprint(w, "~")
 		g.emitExpr(w, n.X)
 		return
 	}
-	fmt.Fprintf(w, "%s", n.Op.String())
+	fmt.Fprint(w, n.Op.String())
 	g.emitExpr(w, n.X)
 }
 
@@ -596,12 +596,12 @@ func (g *Generator) emitExprAsType(w io.Writer, node ast.Node, expr ast.Expr, ta
 	}
 	// Slice nil assignment: emit zero-initialized struct instead of NULL.
 	if _, ok := targetType.Underlying().(*types.Slice); ok && isNilType(g.types.TypeOf(expr)) {
-		fmt.Fprintf(w, "(so_Slice){0}")
+		fmt.Fprint(w, "(so_Slice){0}")
 		return
 	}
 	// Map nil assignment: emit NULL.
 	if _, ok := targetType.Underlying().(*types.Map); ok && isNilType(g.types.TypeOf(expr)) {
-		fmt.Fprintf(w, "NULL")
+		fmt.Fprint(w, "NULL")
 		return
 	}
 	g.emitExpr(w, expr)

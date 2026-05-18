@@ -56,24 +56,24 @@ func (g *Generator) emitSwitchBody(w io.Writer, stmt *ast.SwitchStmt) {
 		}
 		for j, expr := range cc.List {
 			if j > 0 {
-				fmt.Fprintf(w, " || ")
+				fmt.Fprint(w, " || ")
 			}
 			if stmt.Tag == nil {
 				g.emitExpr(w, expr)
 			} else if isString {
-				fmt.Fprintf(w, "so_string_eq(")
+				fmt.Fprint(w, "so_string_eq(")
 				g.emitExpr(w, stmt.Tag)
-				fmt.Fprintf(w, ", ")
+				fmt.Fprint(w, ", ")
 				g.emitExpr(w, expr)
-				fmt.Fprintf(w, ")")
+				fmt.Fprint(w, ")")
 			} else {
 				g.emitExpr(w, stmt.Tag)
-				fmt.Fprintf(w, " == (")
+				fmt.Fprint(w, " == (")
 				g.emitExpr(w, expr)
-				fmt.Fprintf(w, ")")
+				fmt.Fprint(w, ")")
 			}
 		}
-		fmt.Fprintf(w, ") {\n")
+		fmt.Fprint(w, ") {\n")
 		g.state.indent++
 		g.walkStmts(w, cc.Body)
 		g.state.indent--
