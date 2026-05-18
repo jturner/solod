@@ -5,16 +5,11 @@
 // File-level constants.
 static const so_int fInt = 42;
 static const so_String fString = so_str("file");
-const main_HttpStatus main_StatusOK = 200;
-const main_HttpStatus main_StatusNotFound = 404;
-const main_HttpStatus main_StatusError = 500;
 static const main_HttpStatus statusSecret = 999;
-const main_ServerState main_StateIdle = so_str("idle");
-const main_ServerState main_StateConnected = so_str("connected");
-const main_ServerState main_StateError = so_str("error");
-const main_Day main_Sunday = 0;
-const main_Day main_Monday = 1;
-const main_Day main_Tuesday = 2;
+
+// Using constants in other definitions.
+main_Point main_PointZero = (main_Point){.X = main_Zero, .Y = main_Zero};
+main_Point main_PointSubZero = (main_Point){.X = sub_Zero, .Y = sub_Zero};
 
 // -- Implementation --
 

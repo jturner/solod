@@ -14,7 +14,7 @@ typedef struct main_Point {
 // -- Variables and constants --
 
 // MaxCoord is the maximum coordinate value.
-extern const so_int main_MaxCoord;
+static const so_int main_MaxCoord = 1000;
 
 // -- Functions and methods --
 

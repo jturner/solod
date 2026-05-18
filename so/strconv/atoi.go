@@ -20,10 +20,8 @@ func lower(c byte) byte {
 	return c | ('x' - 'X')
 }
 
-const intSize = 32 << (uint64(^uint(0)) >> 63)
-
 // IntSize is the size in bits of an int or uint value.
-const IntSize = intSize
+const IntSize = 32 << (uint64(^uint(0)) >> 63)
 
 // ParseUint is like [ParseInt] but for unsigned numbers.
 //
@@ -195,8 +193,8 @@ func ParseInt(s string, base int, bitSize int) (int64, error) {
 // Atoi is equivalent to ParseInt(s, 10, 0), converted to type int.
 func Atoi(s string) (int, error) {
 	sLen := len(s)
-	if (intSize == 32 && (0 < sLen && sLen < 10)) ||
-		(intSize == 64 && (0 < sLen && sLen < 19)) {
+	if (IntSize == 32 && (0 < sLen && sLen < 10)) ||
+		(IntSize == 64 && (0 < sLen && sLen < 19)) {
 		// Fast path for small integers that fit int type.
 		s0 := s
 		if s[0] == '-' || s[0] == '+' {

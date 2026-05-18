@@ -125,7 +125,7 @@ func (g *Generator) emitHeaderGenDecl(w io.Writer, decl *ast.GenDecl, dirs direc
 		if !ok {
 			continue
 		}
-		for _, name := range vs.Names {
+		for i, name := range vs.Names {
 			if !ast.IsExported(name.Name) {
 				continue
 			}
@@ -139,19 +139,37 @@ func (g *Generator) emitHeaderGenDecl(w io.Writer, decl *ast.GenDecl, dirs direc
 			ct := g.mapCType(spec, typ)
 			cName := g.symbolName(g.types.Defs[name])
 
-			// Build qualifier prefix for extern declarations.
-			qualifier := ""
-			if dirs.threadLocal {
-				qualifier += "_Thread_local "
-			}
-			if dirs.volatile {
-				qualifier += "volatile "
-			}
-
 			switch decl.Tok {
 			case token.CONST:
-				fmt.Fprintf(w, "extern const %s;\n", ct.Decl(cName))
+				// Emit the full definition with static linkage instead of using
+				// extern (declaration in .h, definition in .c):
+				// 	static const int x = 42;
+				//
+				// It's slightly "wasteful" since the constant value is emitted
+				// in every translation unit that includes the header. But it allows
+				// GCC/Clang to recognize the package-level constants from 3rd-party
+				// packages in definitions, which is not possible with externs:
+				// 	var PointZero = Point{X: sub.Zero, Y: sub.Zero}
+				isIota := i >= len(vs.Values) || containsIota(vs.Values[i])
+				saved := g.state.writer
+				g.state.writer = w
+				fmt.Fprintf(w, "static const %s = ", ct.Decl(cName))
+				if isIota {
+					g.emitConstVal(vs, name)
+				} else {
+					g.emitExpr(vs.Values[i])
+				}
+				fmt.Fprintf(w, ";\n")
+				g.state.writer = saved
 			case token.VAR:
+				// Build qualifier prefix for extern declarations.
+				qualifier := ""
+				if dirs.threadLocal {
+					qualifier += "_Thread_local "
+				}
+				if dirs.volatile {
+					qualifier += "volatile "
+				}
 				fmt.Fprintf(w, "extern %s%s;\n", qualifier, ct.Decl(cName))
 			}
 		}

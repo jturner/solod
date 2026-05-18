@@ -268,10 +268,12 @@ func (g *Generator) emitConstSpec(spec *ast.ValueSpec) {
 		// Determine constant specifier and name.
 		specifier, constName := "", name.Name
 		if g.state.indent == 0 {
-			// Package-level constant.
-			if !ast.IsExported(constName) {
-				specifier = "static "
+			// Exported package-level constants are emitted
+			// in the header with static linkage.
+			if ast.IsExported(constName) {
+				continue
 			}
+			specifier = "static "
 			constName = g.symbolName(g.types.Defs[name])
 		}
 

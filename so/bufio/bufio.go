@@ -13,10 +13,8 @@ package bufio
 
 import "solod.dev/so/errors"
 
-const defaultBufSize = 4096
-
 // DefaultBufSize is the default buffer size used by [NewReader] and [NewWriter].
-const DefaultBufSize = defaultBufSize
+const DefaultBufSize = 4096
 
 var (
 	ErrInvalidUnreadByte = errors.New("bufio: invalid use of UnreadByte")

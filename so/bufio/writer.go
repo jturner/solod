@@ -36,7 +36,7 @@ func NewWriterSize(a mem.Allocator, w io.Writer, size int) Writer {
 		}
 	}
 	if size <= 0 {
-		size = defaultBufSize
+		size = DefaultBufSize
 	}
 	wr := Writer{a: a}
 	wr.buf = mem.AllocSlice[byte](a, size, size)
@@ -48,7 +48,7 @@ func NewWriterSize(a mem.Allocator, w io.Writer, size int) Writer {
 // If the argument io.Writer is already a [Writer] with large enough buffer size,
 // it returns the underlying [Writer].
 func NewWriter(a mem.Allocator, w io.Writer) Writer {
-	return NewWriterSize(a, w, defaultBufSize)
+	return NewWriterSize(a, w, DefaultBufSize)
 }
 
 // Size returns the size of the underlying buffer in bytes.
@@ -66,7 +66,7 @@ func (b *Writer) Reset(w io.Writer) {
 		return
 	}
 	if b.buf == nil {
-		b.buf = mem.AllocSlice[byte](b.a, defaultBufSize, defaultBufSize)
+		b.buf = mem.AllocSlice[byte](b.a, DefaultBufSize, DefaultBufSize)
 	}
 	b.err = nil
 	b.n = 0

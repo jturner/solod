@@ -1,5 +1,7 @@
 package main
 
+import "example/sub"
+
 // File-level constants.
 const fInt int = 42
 const fString string = "file"
@@ -35,6 +37,18 @@ const (
 	Monday
 	Tuesday
 )
+
+// Using constants in other definitions.
+const Zero = 42
+const FortyTwo = Zero + 42
+
+type Point struct {
+	X int
+	Y int
+}
+
+var PointZero = Point{X: Zero, Y: Zero}
+var PointSubZero = Point{X: sub.Zero, Y: sub.Zero}
 
 func main() {
 	{

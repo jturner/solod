@@ -2,7 +2,7 @@
 #include "so/builtin/builtin.h"
 
 // -- Variables and constants --
-extern const int64_t main_SomeConst;
+static const int64_t main_SomeConst = 7;
 extern so_int main_SomeVar;
 
 // -- Functions and methods --

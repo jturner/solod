@@ -49,7 +49,7 @@ func NewReaderSize(a mem.Allocator, rd io.Reader, size int) Reader {
 
 // NewReader returns a new [Reader] whose buffer has the default size.
 func NewReader(a mem.Allocator, rd io.Reader) Reader {
-	return NewReaderSize(a, rd, defaultBufSize)
+	return NewReaderSize(a, rd, DefaultBufSize)
 }
 
 // Size returns the size of the underlying buffer in bytes.
@@ -67,7 +67,7 @@ func (b *Reader) Reset(r io.Reader) {
 		return
 	}
 	if b.buf == nil {
-		b.buf = mem.AllocSlice[byte](b.a, defaultBufSize, defaultBufSize)
+		b.buf = mem.AllocSlice[byte](b.a, DefaultBufSize, DefaultBufSize)
 	}
 	b.reset(b.buf, r)
 }

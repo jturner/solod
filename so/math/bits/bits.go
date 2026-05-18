@@ -10,10 +10,8 @@
 // [math/bits]: https://github.com/golang/go/blob/go1.26.1/src/math/bits/bits.go
 package bits
 
-const uintSize = 32 << (uint64(^uint(0)) >> 63) // 32 or 64
-
 // UintSize is the size of a uint in bits.
-const UintSize = uintSize
+const UintSize = 32 << (uint64(^uint(0)) >> 63) // 32 or 64
 
 // --- LeadingZeros ---
 
