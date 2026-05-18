@@ -5,17 +5,17 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"io"
 )
 
 // emitIntRange emits a range loop over an integer.
-func (g *Generator) emitIntRange(stmt *ast.RangeStmt) {
-	w := g.state.writer
+func (g *Generator) emitIntRange(w io.Writer, stmt *ast.RangeStmt) {
 	if stmt.Key == nil {
 		// Basic form: `for range n { ... }`
 		fmt.Fprintf(w, "%sfor (so_int _i = 0; _i < ", g.indent())
-		g.emitExpr(stmt.X)
+		g.emitExpr(w, stmt.X)
 		fmt.Fprintf(w, "; _i++) {\n")
-		g.emitBlock(stmt.Body)
+		g.emitBlock(w, stmt.Body)
 		fmt.Fprintf(w, "%s}\n", g.indent())
 		return
 	}
@@ -23,14 +23,14 @@ func (g *Generator) emitIntRange(stmt *ast.RangeStmt) {
 	key := stmt.Key.(*ast.Ident)
 	keyDecl := g.rangeKeyDecl(stmt, key)
 	fmt.Fprintf(w, "%sfor (%s%s = 0; %s < ", g.indent(), keyDecl, key.Name, key.Name)
-	g.emitExpr(stmt.X)
+	g.emitExpr(w, stmt.X)
 	fmt.Fprintf(w, "; %s++) {\n", key.Name)
-	g.emitBlock(stmt.Body)
+	g.emitBlock(w, stmt.Body)
 	fmt.Fprintf(w, "%s}\n", g.indent())
 }
 
 // emitArrayRange emits a range loop over a fixed-size array.
-func (g *Generator) emitArrayRange(stmt *ast.RangeStmt) {
+func (g *Generator) emitArrayRange(w io.Writer, stmt *ast.RangeStmt) {
 	if _, ok := stmt.X.(*ast.CompositeLit); ok {
 		g.fail(stmt.X, "for-range over literal not supported")
 	}
@@ -44,11 +44,10 @@ func (g *Generator) emitArrayRange(stmt *ast.RangeStmt) {
 	}
 	arrType := typ.(*types.Array)
 
-	w := g.state.writer
 	if stmt.Key == nil {
 		// Basic form: `for range arr { ... }`
 		fmt.Fprintf(w, "%sfor (so_int _i = 0; _i < %d; _i++) {\n", g.indent(), arrType.Len())
-		g.emitBlock(stmt.Body)
+		g.emitBlock(w, stmt.Body)
 		fmt.Fprintf(w, "%s}\n", g.indent())
 		return
 	}
@@ -71,32 +70,31 @@ func (g *Generator) emitArrayRange(stmt *ast.RangeStmt) {
 			fmt.Fprintf(w, "%s%s%s = ", g.indent(), valDecl, valIdent.Name)
 			if ptrDeref {
 				fmt.Fprintf(w, "(*")
-				g.emitExpr(stmt.X)
+				g.emitExpr(w, stmt.X)
 				fmt.Fprintf(w, ")[%s];\n", key.Name)
 			} else {
-				g.emitExpr(stmt.X)
+				g.emitExpr(w, stmt.X)
 				fmt.Fprintf(w, "[%s];\n", key.Name)
 			}
 			g.state.indent--
 		}
 	}
 
-	g.emitBlock(stmt.Body)
+	g.emitBlock(w, stmt.Body)
 	fmt.Fprintf(w, "%s}\n", g.indent())
 }
 
 // emitSliceRange emits a range loop over a slice.
-func (g *Generator) emitSliceRange(stmt *ast.RangeStmt) {
+func (g *Generator) emitSliceRange(w io.Writer, stmt *ast.RangeStmt) {
 	if _, ok := stmt.X.(*ast.CompositeLit); ok {
 		g.fail(stmt.X, "for-range over literal not supported")
 	}
-	w := g.state.writer
 	if stmt.Key == nil {
 		// Basic form: `for range slice { ... }`
 		fmt.Fprintf(w, "%sfor (so_int _i = 0; _i < so_len(", g.indent())
-		g.emitExpr(stmt.X)
+		g.emitExpr(w, stmt.X)
 		fmt.Fprintf(w, "); _i++) {\n")
-		g.emitBlock(stmt.Body)
+		g.emitBlock(w, stmt.Body)
 		fmt.Fprintf(w, "%s}\n", g.indent())
 		return
 	}
@@ -107,7 +105,7 @@ func (g *Generator) emitSliceRange(stmt *ast.RangeStmt) {
 	keyDecl := g.rangeKeyDecl(stmt, key)
 
 	fmt.Fprintf(w, "%sfor (%s%s = 0; %s < so_len(", g.indent(), keyDecl, key.Name, key.Name)
-	g.emitExpr(stmt.X)
+	g.emitExpr(w, stmt.X)
 	fmt.Fprintf(w, "); %s++) {\n", key.Name)
 
 	// Emit value variable if present (e.g. `for i, v := range nums`).
@@ -119,31 +117,30 @@ func (g *Generator) emitSliceRange(stmt *ast.RangeStmt) {
 				valDecl = ""
 			}
 			fmt.Fprintf(w, "%s%s%s = so_at(%s, ", g.indent(), valDecl, valIdent.Name, elemType)
-			g.emitExpr(stmt.X)
+			g.emitExpr(w, stmt.X)
 			fmt.Fprintf(w, ", %s);\n", key.Name)
 			g.state.indent--
 		}
 	}
 
-	g.emitBlock(stmt.Body)
+	g.emitBlock(w, stmt.Body)
 	fmt.Fprintf(w, "%s}\n", g.indent())
 }
 
 // emitStringRange emits a range loop over a string (rune iteration).
-func (g *Generator) emitStringRange(stmt *ast.RangeStmt) {
-	w := g.state.writer
+func (g *Generator) emitStringRange(w io.Writer, stmt *ast.RangeStmt) {
 	if stmt.Key == nil {
 		// Basic form: `for range str { ... }`
 		fmt.Fprintf(w, "%sfor (so_int _i = 0, _iw = 0; _i < so_len(", g.indent())
-		g.emitExpr(stmt.X)
+		g.emitExpr(w, stmt.X)
 		fmt.Fprintf(w, "); _i += _iw) {\n")
 		g.state.indent++
 		fmt.Fprintf(w, "%s_iw = 0;\n", g.indent())
 		fmt.Fprintf(w, "%sso_utf8_decode(", g.indent())
-		g.emitExpr(stmt.X)
+		g.emitExpr(w, stmt.X)
 		fmt.Fprintf(w, ", _i, &_iw);\n")
 		g.state.indent--
-		g.emitBlock(stmt.Body)
+		g.emitBlock(w, stmt.Body)
 		fmt.Fprintf(w, "%s}\n", g.indent())
 		return
 	}
@@ -153,7 +150,7 @@ func (g *Generator) emitStringRange(stmt *ast.RangeStmt) {
 	widthVar := "_" + key.Name + "w"
 
 	fmt.Fprintf(w, "%sfor (%s%s = 0, %s = 0; %s < so_len(", g.indent(), keyDecl, key.Name, widthVar, key.Name)
-	g.emitExpr(stmt.X)
+	g.emitExpr(w, stmt.X)
 	fmt.Fprintf(w, "); %s += %s) {\n", key.Name, widthVar)
 
 	// Decode rune and width once per iteration.
@@ -172,11 +169,11 @@ func (g *Generator) emitStringRange(stmt *ast.RangeStmt) {
 	} else {
 		fmt.Fprintf(w, "%sso_utf8_decode(", g.indent())
 	}
-	g.emitExpr(stmt.X)
+	g.emitExpr(w, stmt.X)
 	fmt.Fprintf(w, ", %s, &%s);\n", key.Name, widthVar)
 	g.state.indent--
 
-	g.emitBlock(stmt.Body)
+	g.emitBlock(w, stmt.Body)
 
 	fmt.Fprintf(w, "%s}\n", g.indent())
 }

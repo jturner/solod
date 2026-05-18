@@ -5,16 +5,17 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"io"
 )
 
 // emitAssignStmt emits an assignment statement.
-func (g *Generator) emitAssignStmt(stmt *ast.AssignStmt) {
+func (g *Generator) emitAssignStmt(w io.Writer, stmt *ast.AssignStmt) {
 	switch stmt.Tok {
 	case token.DEFINE:
-		g.emitDefine(stmt)
+		g.emitDefine(w, stmt)
 
 	case token.ASSIGN:
-		g.emitAssign(stmt)
+		g.emitAssign(w, stmt)
 
 	case token.ADD_ASSIGN, token.SUB_ASSIGN, token.MUL_ASSIGN, token.QUO_ASSIGN,
 		token.REM_ASSIGN, token.OR_ASSIGN, token.AND_ASSIGN, token.XOR_ASSIGN,
@@ -24,22 +25,21 @@ func (g *Generator) emitAssignStmt(stmt *ast.AssignStmt) {
 				g.fail(stmt, "compound assignment on map index is not supported")
 			}
 		}
-		w := g.state.writer
 		// String += uses so_string_add.
 		if stmt.Tok == token.ADD_ASSIGN && g.hasStringType(stmt.Lhs[0]) {
 			fmt.Fprintf(w, "%s", g.indent())
-			g.emitExpr(stmt.Lhs[0])
+			g.emitExpr(w, stmt.Lhs[0])
 			fmt.Fprintf(w, " = so_string_add(")
-			g.emitExpr(stmt.Lhs[0])
+			g.emitExpr(w, stmt.Lhs[0])
 			fmt.Fprintf(w, ", ")
-			g.emitExpr(stmt.Rhs[0])
+			g.emitExpr(w, stmt.Rhs[0])
 			fmt.Fprintf(w, ");\n")
 			return
 		}
 		fmt.Fprintf(w, "%s", g.indent())
-		g.emitExpr(stmt.Lhs[0])
+		g.emitExpr(w, stmt.Lhs[0])
 		fmt.Fprintf(w, " %s ", stmt.Tok)
-		g.emitExpr(stmt.Rhs[0])
+		g.emitExpr(w, stmt.Rhs[0])
 		fmt.Fprintf(w, ";\n")
 
 	default:
@@ -48,8 +48,7 @@ func (g *Generator) emitAssignStmt(stmt *ast.AssignStmt) {
 }
 
 // emitDefine emits a short variable declaration (:=).
-func (g *Generator) emitDefine(stmt *ast.AssignStmt) {
-	w := g.state.writer
+func (g *Generator) emitDefine(w io.Writer, stmt *ast.AssignStmt) {
 	// Detect: _, ok := s.(Rect)
 	if len(stmt.Lhs) == 2 && len(stmt.Rhs) == 1 {
 		if ta, ok := stmt.Rhs[0].(*ast.TypeAssertExpr); ok {
@@ -61,7 +60,7 @@ func (g *Generator) emitDefine(stmt *ast.AssignStmt) {
 	if len(stmt.Lhs) == 2 && len(stmt.Rhs) == 1 {
 		if idx, ok := stmt.Rhs[0].(*ast.IndexExpr); ok {
 			if _, isMap := g.types.TypeOf(idx.X).Underlying().(*types.Map); isMap {
-				g.emitMapCommaOk(stmt, idx, true)
+				g.emitMapCommaOk(w, stmt, idx, true)
 				return
 			}
 		}
@@ -69,7 +68,7 @@ func (g *Generator) emitDefine(stmt *ast.AssignStmt) {
 	// Multi-return destructuring: x, y := f()
 	if len(stmt.Lhs) > 1 && len(stmt.Rhs) == 1 {
 		if call, ok := stmt.Rhs[0].(*ast.CallExpr); ok {
-			g.emitMultiReturnDefine(stmt, call)
+			g.emitMultiReturnDefine(w, stmt, call)
 			return
 		}
 	}
@@ -113,7 +112,7 @@ func (g *Generator) emitDefine(stmt *ast.AssignStmt) {
 			// Redeclared variable - emit plain assignment.
 			typ := g.types.Uses[ident].Type()
 			fmt.Fprintf(w, "%s%s = ", g.indent(), ident.Name)
-			g.emitExprAsType(stmt, stmt.Rhs[i], typ)
+			g.emitExprAsType(w, stmt, stmt.Rhs[i], typ)
 			fmt.Fprintf(w, ";\n")
 			i++
 			continue
@@ -127,13 +126,13 @@ func (g *Generator) emitDefine(stmt *ast.AssignStmt) {
 			if _, isLit := stmt.Rhs[i].(*ast.CompositeLit); isLit {
 				// Composite literal: so_int d[3] = {1, 2, 3};
 				fmt.Fprintf(w, "%s%s = ", g.indent(), ct.Decl(ident.Name))
-				g.emitExpr(stmt.Rhs[i])
+				g.emitExpr(w, stmt.Rhs[i])
 				fmt.Fprintf(w, ";\n")
 			} else {
 				// Variable: declaration + memcpy.
 				fmt.Fprintf(w, "%s%s;\n", g.indent(), ct.Decl(ident.Name))
 				fmt.Fprintf(w, "%smemcpy(%s, ", g.indent(), ident.Name)
-				g.emitExpr(stmt.Rhs[i])
+				g.emitExpr(w, stmt.Rhs[i])
 				fmt.Fprintf(w, ", sizeof(%s));\n", ident.Name)
 			}
 			i++
@@ -143,7 +142,7 @@ func (g *Generator) emitDefine(stmt *ast.AssignStmt) {
 		// Emit a variable declaration for this variable
 		// (grouped with subsequent variables of the same type).
 		fmt.Fprintf(w, "%s%s = ", g.indent(), ct.Decl(ident.Name))
-		g.emitExpr(stmt.Rhs[i])
+		g.emitExpr(w, stmt.Rhs[i])
 		i++
 		for i < len(stmt.Lhs) {
 			nextIdent := stmt.Lhs[i].(*ast.Ident)
@@ -162,7 +161,7 @@ func (g *Generator) emitDefine(stmt *ast.AssignStmt) {
 				break
 			}
 			fmt.Fprintf(w, ", %s = ", nextIdent.Name)
-			g.emitExpr(stmt.Rhs[i])
+			g.emitExpr(w, stmt.Rhs[i])
 			i++
 		}
 		fmt.Fprintf(w, ";\n")
@@ -170,8 +169,7 @@ func (g *Generator) emitDefine(stmt *ast.AssignStmt) {
 }
 
 // emitAssign emits a regular assignment (=).
-func (g *Generator) emitAssign(stmt *ast.AssignStmt) {
-	w := g.state.writer
+func (g *Generator) emitAssign(w io.Writer, stmt *ast.AssignStmt) {
 	// Detect: _, ok = s.(Rect)
 	if len(stmt.Lhs) == 2 && len(stmt.Rhs) == 1 {
 		if ta, ok := stmt.Rhs[0].(*ast.TypeAssertExpr); ok {
@@ -183,7 +181,7 @@ func (g *Generator) emitAssign(stmt *ast.AssignStmt) {
 	if len(stmt.Lhs) == 2 && len(stmt.Rhs) == 1 {
 		if idx, ok := stmt.Rhs[0].(*ast.IndexExpr); ok {
 			if _, isMap := g.types.TypeOf(idx.X).Underlying().(*types.Map); isMap {
-				g.emitMapCommaOk(stmt, idx, false)
+				g.emitMapCommaOk(w, stmt, idx, false)
 				return
 			}
 		}
@@ -191,7 +189,7 @@ func (g *Generator) emitAssign(stmt *ast.AssignStmt) {
 	// Multi-return destructuring: x, y = f()
 	if len(stmt.Lhs) > 1 && len(stmt.Rhs) == 1 {
 		if call, ok := stmt.Rhs[0].(*ast.CallExpr); ok {
-			g.emitMultiReturnAssign(stmt, call)
+			g.emitMultiReturnAssign(w, stmt, call)
 			return
 		}
 	}
@@ -212,10 +210,10 @@ func (g *Generator) emitAssign(stmt *ast.AssignStmt) {
 			fmt.Fprintf(w, "%s(void)", g.indent())
 			if g.needsVoidParens(stmt.Rhs[i]) {
 				fmt.Fprintf(w, "(")
-				g.emitExpr(stmt.Rhs[i])
+				g.emitExpr(w, stmt.Rhs[i])
 				fmt.Fprintf(w, ")")
 			} else {
-				g.emitExpr(stmt.Rhs[i])
+				g.emitExpr(w, stmt.Rhs[i])
 			}
 			fmt.Fprintf(w, ";\n")
 			continue
@@ -224,7 +222,7 @@ func (g *Generator) emitAssign(stmt *ast.AssignStmt) {
 		// Map index assignment uses so_map_set.
 		if idx, ok := lhs.(*ast.IndexExpr); ok {
 			if _, isMap := g.types.TypeOf(idx.X).Underlying().(*types.Map); isMap {
-				g.emitMapIndexAssign(stmt, idx, stmt.Rhs[i])
+				g.emitMapIndexAssign(w, stmt, idx, stmt.Rhs[i])
 				continue
 			}
 		}
@@ -233,25 +231,25 @@ func (g *Generator) emitAssign(stmt *ast.AssignStmt) {
 		lhsType := g.types.TypeOf(lhs)
 		if arr, ok := lhsType.Underlying().(*types.Array); ok {
 			fmt.Fprintf(w, "%smemcpy(", g.indent())
-			g.emitExpr(lhs)
+			g.emitExpr(w, lhs)
 			fmt.Fprintf(w, ", ")
 			if _, isLit := stmt.Rhs[i].(*ast.CompositeLit); isLit {
 				// Compound literal: (int[3]){1, 2, 3}
 				elemType := g.mapType(stmt, arr.Elem())
 				fmt.Fprintf(w, "(%s%s)", elemType, arrayDims(arr))
 			}
-			g.emitExpr(stmt.Rhs[i])
+			g.emitExpr(w, stmt.Rhs[i])
 			fmt.Fprintf(w, ", sizeof(")
-			g.emitExpr(lhs)
+			g.emitExpr(w, lhs)
 			fmt.Fprintf(w, "));\n")
 			continue
 		}
 
 		// Non-array assignment.
 		fmt.Fprintf(w, "%s", g.indent())
-		g.emitExpr(lhs)
+		g.emitExpr(w, lhs)
 		fmt.Fprintf(w, " = ")
-		g.emitExprAsType(stmt, stmt.Rhs[i], lhsType)
+		g.emitExprAsType(w, stmt, stmt.Rhs[i], lhsType)
 		fmt.Fprintf(w, ";\n")
 	}
 }

@@ -72,8 +72,7 @@ func (g *Generator) emitInlineStructField(w io.Writer, st *ast.StructType, field
 
 // emitMethodDecl emits a method as a C function.
 // Pointer receivers use void* self with a cast; value receivers pass the struct by value.
-func (g *Generator) emitMethodDecl(decl *ast.FuncDecl) {
-	w := g.state.writer
+func (g *Generator) emitMethodDecl(w io.Writer, decl *ast.FuncDecl) {
 	sig := g.funcSig(decl)
 	g.rejectNamedReturns(decl, sig)
 
@@ -112,9 +111,9 @@ func (g *Generator) emitMethodDecl(decl *ast.FuncDecl) {
 	}
 
 	// Emit method body, handling deferred calls if needed.
-	g.walkStmts(decl.Body.List)
+	g.walkStmts(w, decl.Body.List)
 	if !endsWithReturn(decl.Body.List) {
-		g.emitDeferredCalls()
+		g.emitDeferredCalls(w)
 	}
 	g.state.indent--
 	fmt.Fprintf(w, "}\n")
@@ -126,8 +125,7 @@ func (g *Generator) emitMethodDecl(decl *ast.FuncDecl) {
 
 // emitAnonStructLit emits an anonymous struct literal.
 // (e.g. struct{ x, y int }{1, 2} or struct{ x, y int }{ x: 1, y: 2 })
-func (g *Generator) emitAnonStructLit(n *ast.CompositeLit, st *ast.StructType) {
-	w := g.state.writer
+func (g *Generator) emitAnonStructLit(w io.Writer, n *ast.CompositeLit, st *ast.StructType) {
 	// Struct fields declaration.
 	fmt.Fprintf(w, "(struct {\n")
 	for _, field := range st.Fields.List {
@@ -150,10 +148,10 @@ func (g *Generator) emitAnonStructLit(n *ast.CompositeLit, st *ast.StructType) {
 		if kv, ok := elt.(*ast.KeyValueExpr); ok {
 			fieldName := kv.Key.(*ast.Ident).Name
 			fmt.Fprintf(w, "%s    .%s = ", g.indent(), fieldName)
-			g.emitExprAsType(n, kv.Value, structFieldType(struc, fieldName))
+			g.emitExprAsType(w, n, kv.Value, structFieldType(struc, fieldName))
 		} else {
 			fmt.Fprintf(w, "%s    .%s = ", g.indent(), fields[i])
-			g.emitExprAsType(n, elt, struc.Field(i).Type())
+			g.emitExprAsType(w, n, elt, struc.Field(i).Type())
 		}
 	}
 	fmt.Fprintf(w, ",\n")
@@ -161,8 +159,7 @@ func (g *Generator) emitAnonStructLit(n *ast.CompositeLit, st *ast.StructType) {
 }
 
 // emitStructLit emits a struct literal (e.g. Point{1, 2} or Point{x: 1, y: 2}).
-func (g *Generator) emitStructLit(n *ast.CompositeLit) {
-	w := g.state.writer
+func (g *Generator) emitStructLit(w io.Writer, n *ast.CompositeLit) {
 	var typ types.Type
 	if n.Type != nil {
 		typ = g.types.TypeOf(n.Type)
@@ -171,13 +168,12 @@ func (g *Generator) emitStructLit(n *ast.CompositeLit) {
 	}
 	cType := g.mapType(n, typ)
 	fmt.Fprintf(w, "(%s)", cType)
-	g.emitBareStructInit(n)
+	g.emitBareStructInit(w, n)
 }
 
 // emitBareStructInit emits a struct literal as a bare initializer
 // (e.g. {.n = 200, .i = 10}) without a compound literal cast prefix.
-func (g *Generator) emitBareStructInit(n *ast.CompositeLit) {
-	w := g.state.writer
+func (g *Generator) emitBareStructInit(w io.Writer, n *ast.CompositeLit) {
 	struc := g.types.TypeOf(n).Underlying().(*types.Struct)
 	fmt.Fprintf(w, "{")
 	for i, elt := range n.Elts {
@@ -188,15 +184,15 @@ func (g *Generator) emitBareStructInit(n *ast.CompositeLit) {
 			fieldName := kv.Key.(*ast.Ident).Name
 			fmt.Fprintf(w, ".%s = ", fieldName)
 			if lit, ok := isAnonStructLit(kv.Value); ok {
-				g.emitBareStructInit(lit)
+				g.emitBareStructInit(w, lit)
 			} else {
-				g.emitExprAsType(n, kv.Value, structFieldType(struc, fieldName))
+				g.emitExprAsType(w, n, kv.Value, structFieldType(struc, fieldName))
 			}
 		} else {
 			if lit, ok := isAnonStructLit(elt); ok {
-				g.emitBareStructInit(lit)
+				g.emitBareStructInit(w, lit)
 			} else {
-				g.emitExprAsType(n, elt, struc.Field(i).Type())
+				g.emitExprAsType(w, n, elt, struc.Field(i).Type())
 			}
 		}
 	}
@@ -204,8 +200,7 @@ func (g *Generator) emitBareStructInit(n *ast.CompositeLit) {
 }
 
 // emitMethodCall emits a method call.
-func (g *Generator) emitMethodCall(sel *ast.SelectorExpr, call *ast.CallExpr) {
-	w := g.state.writer
+func (g *Generator) emitMethodCall(w io.Writer, sel *ast.SelectorExpr, call *ast.CallExpr) {
 	selection := g.types.Selections[sel]
 	recv := selection.Recv()
 	sig := selection.Type().(*types.Signature)
@@ -220,11 +215,11 @@ func (g *Generator) emitMethodCall(sel *ast.SelectorExpr, call *ast.CallExpr) {
 
 	// Interface method dispatch: s.Perim(2) → s.Perim(s.self, 2)
 	if isInterfaceType(named) {
-		g.emitExpr(sel.X)
+		g.emitExpr(w, sel.X)
 		fmt.Fprintf(w, ".%s(", sel.Sel.Name)
-		g.emitExpr(sel.X)
+		g.emitExpr(w, sel.X)
 		fmt.Fprintf(w, ".self")
-		g.emitMethodCallArgs(sel, call, sig, "", "")
+		g.emitMethodCallArgs(w, sel, call, sig, "", "")
 		fmt.Fprintf(w, ")")
 		return
 	}
@@ -264,30 +259,29 @@ func (g *Generator) emitMethodCall(sel *ast.SelectorExpr, call *ast.CallExpr) {
 	if isMethodPtrRecv {
 		// Pointer receiver: pass address of value, or pointer directly.
 		if isCallSitePtr {
-			g.emitExpr(sel.X)
+			g.emitExpr(w, sel.X)
 		} else {
 			fmt.Fprintf(w, "&")
-			g.emitExpr(sel.X)
+			g.emitExpr(w, sel.X)
 		}
 	} else {
 		// Value receiver: pass value directly, or dereference pointer.
 		if isCallSitePtr {
 			fmt.Fprintf(w, "*")
-			g.emitExpr(sel.X)
+			g.emitExpr(w, sel.X)
 		} else {
-			g.emitExpr(sel.X)
+			g.emitExpr(w, sel.X)
 		}
 	}
 	fmt.Fprintf(w, "%s", rparen)
 
 	// Pass method arguments.
-	g.emitMethodCallArgs(sel, call, sig, lparen, rparen)
+	g.emitMethodCallArgs(w, sel, call, sig, lparen, rparen)
 	fmt.Fprintf(w, ")")
 }
 
 // emitMethodCallArgs emits method arguments, handling variadic arg packing.
-func (g *Generator) emitMethodCallArgs(sel *ast.SelectorExpr, call *ast.CallExpr, sig *types.Signature, lparen, rparen string) {
-	w := g.state.writer
+func (g *Generator) emitMethodCallArgs(w io.Writer, sel *ast.SelectorExpr, call *ast.CallExpr, sig *types.Signature, lparen, rparen string) {
 	args := call.Args
 
 	if sig.Variadic() && !call.Ellipsis.IsValid() {
@@ -295,7 +289,7 @@ func (g *Generator) emitMethodCallArgs(sel *ast.SelectorExpr, call *ast.CallExpr
 		fixedCount := sig.Params().Len() - 1
 		for i := 0; i < fixedCount && i < len(args); i++ {
 			fmt.Fprintf(w, ", %s", lparen)
-			g.emitExprAsType(sel, args[i], sig.Params().At(i).Type())
+			g.emitExprAsType(w, sel, args[i], sig.Params().At(i).Type())
 			fmt.Fprint(w, rparen)
 		}
 		variadicArgs := args[fixedCount:]
@@ -308,14 +302,14 @@ func (g *Generator) emitMethodCallArgs(sel *ast.SelectorExpr, call *ast.CallExpr
 			if i > 0 {
 				fmt.Fprintf(w, ", ")
 			}
-			g.emitExprAsType(sel, arg, targetType)
+			g.emitExprAsType(w, sel, arg, targetType)
 		}
 		fmt.Fprintf(w, "}, %d, %d}%s", count, count, rparen)
 	} else {
 		// Non-variadic call or variadic call with ellipsis: emit all args directly.
 		for i, arg := range args {
 			fmt.Fprintf(w, ", %s", lparen)
-			g.emitExprAsType(sel, arg, sig.Params().At(i).Type())
+			g.emitExprAsType(w, sel, arg, sig.Params().At(i).Type())
 			fmt.Fprint(w, rparen)
 		}
 	}

@@ -110,8 +110,7 @@ func (g *Generator) returnType(node ast.Node, sig *types.Signature) string {
 //	so_int x = _res1.val;
 //	so_Error y = _res1.err;           // (T, error)
 //	so_int y = _res1.val2;            // (T, T)
-func (g *Generator) emitMultiReturnDefine(stmt *ast.AssignStmt, call *ast.CallExpr) {
-	w := g.state.writer
+func (g *Generator) emitMultiReturnDefine(w io.Writer, stmt *ast.AssignStmt, call *ast.CallExpr) {
 	sig := g.callSig(call)
 	multi := g.multiReturnFields(stmt, sig)
 
@@ -119,7 +118,7 @@ func (g *Generator) emitMultiReturnDefine(stmt *ast.AssignStmt, call *ast.CallEx
 	g.state.tempCount++
 	tmp := fmt.Sprintf("_res%d", g.state.tempCount)
 	fmt.Fprintf(w, "%s%s %s = ", g.indent(), multi.typeName(), tmp)
-	g.emitExpr(call)
+	g.emitExpr(w, call)
 	fmt.Fprintf(w, ";\n")
 
 	// Emit individual variable declarations from result fields.
@@ -147,8 +146,7 @@ func (g *Generator) emitMultiReturnDefine(stmt *ast.AssignStmt, call *ast.CallEx
 //	x = _res1.val;
 //	y = _res1.err;                    // (T, error)
 //	y = _res1.val2;                   // (T, T)
-func (g *Generator) emitMultiReturnAssign(stmt *ast.AssignStmt, call *ast.CallExpr) {
-	w := g.state.writer
+func (g *Generator) emitMultiReturnAssign(w io.Writer, stmt *ast.AssignStmt, call *ast.CallExpr) {
 	sig := g.callSig(call)
 	multi := g.multiReturnFields(stmt, sig)
 
@@ -156,7 +154,7 @@ func (g *Generator) emitMultiReturnAssign(stmt *ast.AssignStmt, call *ast.CallEx
 	g.state.tempCount++
 	tmp := fmt.Sprintf("_res%d", g.state.tempCount)
 	fmt.Fprintf(w, "%s%s %s = ", g.indent(), multi.typeName(), tmp)
-	g.emitExpr(call)
+	g.emitExpr(w, call)
 	fmt.Fprintf(w, ";\n")
 
 	// Emit assignments from result fields.
@@ -166,7 +164,7 @@ func (g *Generator) emitMultiReturnAssign(stmt *ast.AssignStmt, call *ast.CallEx
 		}
 		accessor := multi.accessor(tmp, i)
 		fmt.Fprintf(w, "%s", g.indent())
-		g.emitExpr(lhs)
+		g.emitExpr(w, lhs)
 		fmt.Fprintf(w, " = %s;\n", accessor)
 	}
 }

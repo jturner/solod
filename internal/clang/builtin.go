@@ -5,41 +5,41 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"io"
 	"strings"
 )
 
 // emitBuiltin handles a builtin function call. Returns true if the call
 // was fully emitted (including arguments), false if only the function
 // name was emitted and the caller must still emit arguments.
-func (g *Generator) emitBuiltin(call *ast.CallExpr, ident *ast.Ident, bi *types.Builtin) bool {
-	w := g.state.writer
+func (g *Generator) emitBuiltin(w io.Writer, call *ast.CallExpr, ident *ast.Ident, bi *types.Builtin) bool {
 	switch bi.Name() {
 	case "append":
-		g.emitAppendCall(call)
+		g.emitAppendCall(w, call)
 		return true
 	case "clear":
-		g.emitClearCall(call)
+		g.emitClearCall(w, call)
 		return true
 	case "close", "complex", "delete", "imag", "real", "recover":
 		g.fail(call, "%s() is not supported", bi.Name())
 		return true
 	case "copy":
-		g.emitCopyCall(call)
+		g.emitCopyCall(w, call)
 		return true
 	case "make":
-		g.emitMakeCall(call)
+		g.emitMakeCall(w, call)
 		return true
 	case "min", "max":
-		g.emitMinMaxCall(call, bi.Name())
+		g.emitMinMaxCall(w, call, bi.Name())
 		return true
 	case "new":
-		g.emitNewCall(call)
+		g.emitNewCall(w, call)
 		return true
 	case "panic":
-		g.emitPanicCall(call)
+		g.emitPanicCall(w, call)
 		return true
 	case "print", "println":
-		g.emitPrintCall(call, bi.Name())
+		g.emitPrintCall(w, call, bi.Name())
 		return true
 	}
 
@@ -54,7 +54,7 @@ func (g *Generator) emitBuiltin(call *ast.CallExpr, ident *ast.Ident, bi *types.
 	// len on maps emits m->len since maps are pointers.
 	if bi.Name() == "len" && len(call.Args) == 1 {
 		if _, ok := g.types.TypeOf(call.Args[0]).Underlying().(*types.Map); ok {
-			g.emitExpr(call.Args[0])
+			g.emitExpr(w, call.Args[0])
 			fmt.Fprintf(w, "->len")
 			return true
 		}
@@ -67,8 +67,7 @@ func (g *Generator) emitBuiltin(call *ast.CallExpr, ident *ast.Ident, bi *types.
 }
 
 // emitAppendCall emits an append() builtin call.
-func (g *Generator) emitAppendCall(call *ast.CallExpr) {
-	w := g.state.writer
+func (g *Generator) emitAppendCall(w io.Writer, call *ast.CallExpr) {
 	sliceType := g.types.TypeOf(call.Args[0]).Underlying().(*types.Slice)
 	elemType := g.mapType(call, sliceType.Elem())
 	if call.Ellipsis.IsValid() {
@@ -76,33 +75,32 @@ func (g *Generator) emitAppendCall(call *ast.CallExpr) {
 		if basic, ok := srcType.(*types.Basic); ok && basic.Info()&types.IsString != 0 {
 			// Appending a string to a byte slice (e.g. append(dst, str...)).
 			fmt.Fprintf(w, "so_extend(%s, ", elemType)
-			g.emitExpr(call.Args[0])
+			g.emitExpr(w, call.Args[0])
 			fmt.Fprintf(w, ", so_string_bytes(")
-			g.emitExpr(call.Args[1])
+			g.emitExpr(w, call.Args[1])
 			fmt.Fprintf(w, "))")
 		} else {
 			// Appending a slice (e.g. append(dst, src...)).
 			fmt.Fprintf(w, "so_extend(%s, ", elemType)
-			g.emitExpr(call.Args[0])
+			g.emitExpr(w, call.Args[0])
 			fmt.Fprintf(w, ", (")
-			g.emitExpr(call.Args[1])
+			g.emitExpr(w, call.Args[1])
 			fmt.Fprintf(w, "))")
 		}
 	} else {
 		// Appending individual values (e.g. append(dst, v1, v2, v3)).
 		fmt.Fprintf(w, "so_append(%s, ", elemType)
-		g.emitExpr(call.Args[0])
+		g.emitExpr(w, call.Args[0])
 		for _, arg := range call.Args[1:] {
 			fmt.Fprintf(w, ", ")
-			g.emitExpr(arg)
+			g.emitExpr(w, arg)
 		}
 		fmt.Fprintf(w, ")")
 	}
 }
 
 // emitClearCall emits a clear() builtin call as so_clear(T, s).
-func (g *Generator) emitClearCall(call *ast.CallExpr) {
-	w := g.state.writer
+func (g *Generator) emitClearCall(w io.Writer, call *ast.CallExpr) {
 	typ := g.types.TypeOf(call.Args[0]).Underlying()
 	if _, ok := typ.(*types.Map); ok {
 		g.fail(call, "clear() is not supported for maps")
@@ -110,20 +108,19 @@ func (g *Generator) emitClearCall(call *ast.CallExpr) {
 	sliceType := typ.(*types.Slice)
 	elemType := g.mapType(call, sliceType.Elem())
 	fmt.Fprintf(w, "so_clear(%s, ", elemType)
-	g.emitExpr(call.Args[0])
+	g.emitExpr(w, call.Args[0])
 	fmt.Fprintf(w, ")")
 }
 
 // emitCopyCall emits a copy() builtin call as so_copy(T, dst, src).
-func (g *Generator) emitCopyCall(call *ast.CallExpr) {
-	w := g.state.writer
+func (g *Generator) emitCopyCall(w io.Writer, call *ast.CallExpr) {
 	srcType := g.types.TypeOf(call.Args[1]).Underlying()
 	if basic, ok := srcType.(*types.Basic); ok && basic.Info()&types.IsString != 0 {
 		// copy([]byte, string) - copy bytes directly from string.
 		fmt.Fprintf(w, "so_copy_string(")
-		g.emitExpr(call.Args[0])
+		g.emitExpr(w, call.Args[0])
 		fmt.Fprintf(w, ", ")
-		g.emitExpr(call.Args[1])
+		g.emitExpr(w, call.Args[1])
 		fmt.Fprintf(w, ")")
 		return
 	}
@@ -131,27 +128,26 @@ func (g *Generator) emitCopyCall(call *ast.CallExpr) {
 	dstType := g.types.TypeOf(call.Args[0]).Underlying().(*types.Slice)
 	elemType := g.mapType(call, dstType.Elem())
 	fmt.Fprintf(w, "so_copy(%s, ", elemType)
-	g.emitExpr(call.Args[0])
+	g.emitExpr(w, call.Args[0])
 	fmt.Fprintf(w, ", ")
-	g.emitExpr(call.Args[1])
+	g.emitExpr(w, call.Args[1])
 	fmt.Fprintf(w, ")")
 }
 
 // emitMakeCall emits a make() builtin call for slices or maps.
-func (g *Generator) emitMakeCall(call *ast.CallExpr) {
-	w := g.state.writer
+func (g *Generator) emitMakeCall(w io.Writer, call *ast.CallExpr) {
 	typ := g.types.Types[call.Args[0]].Type.Underlying()
 
 	switch t := typ.(type) {
 	case *types.Slice:
 		elemType := g.mapType(call, t.Elem())
 		fmt.Fprintf(w, "so_make_slice(%s, ", elemType)
-		g.emitExpr(call.Args[1])
+		g.emitExpr(w, call.Args[1])
 		fmt.Fprintf(w, ", ")
 		if len(call.Args) >= 3 {
-			g.emitExpr(call.Args[2])
+			g.emitExpr(w, call.Args[2])
 		} else {
-			g.emitExpr(call.Args[1])
+			g.emitExpr(w, call.Args[1])
 		}
 		fmt.Fprintf(w, ")")
 
@@ -160,7 +156,7 @@ func (g *Generator) emitMakeCall(call *ast.CallExpr) {
 		keyType := g.mapType(call, t.Key())
 		valType := g.mapType(call, t.Elem())
 		fmt.Fprintf(w, "so_make_map(%s, %s, ", keyType, valType)
-		g.emitExpr(call.Args[1])
+		g.emitExpr(w, call.Args[1])
 		fmt.Fprintf(w, ")")
 
 	default:
@@ -172,8 +168,7 @@ func (g *Generator) emitMakeCall(call *ast.CallExpr) {
 // For numeric types: so_min(a, b) / so_max(a, b)
 // For string types: so_string_min(a, b) / so_string_max(a, b)
 // For 3+ args, nests calls: min(a, b, c) -> so_min(so_min(a, b), c)
-func (g *Generator) emitMinMaxCall(call *ast.CallExpr, name string) {
-	w := g.state.writer
+func (g *Generator) emitMinMaxCall(w io.Writer, call *ast.CallExpr, name string) {
 	typ := g.types.TypeOf(call.Args[0])
 	basic, ok := typ.Underlying().(*types.Basic)
 	if !ok {
@@ -195,17 +190,16 @@ func (g *Generator) emitMinMaxCall(call *ast.CallExpr, name string) {
 	for i := 0; i < len(call.Args)-1; i++ {
 		fmt.Fprintf(w, "%s(", fn)
 	}
-	g.emitExpr(call.Args[0])
+	g.emitExpr(w, call.Args[0])
 	for _, arg := range call.Args[1:] {
 		fmt.Fprintf(w, ", ")
-		g.emitExpr(arg)
+		g.emitExpr(w, arg)
 		fmt.Fprintf(w, ")")
 	}
 }
 
 // emitNewCall emits a new() builtin call as a compound literal address.
-func (g *Generator) emitNewCall(call *ast.CallExpr) {
-	w := g.state.writer
+func (g *Generator) emitNewCall(w io.Writer, call *ast.CallExpr) {
 	tv := g.types.Types[call.Args[0]]
 	if tv.IsType() {
 		// new(T) - zero-initialized compound literal.
@@ -216,7 +210,7 @@ func (g *Generator) emitNewCall(call *ast.CallExpr) {
 	if _, ok := call.Args[0].(*ast.CompositeLit); ok {
 		// new(T{...}) - addressed composite literal.
 		fmt.Fprintf(w, "&")
-		g.emitExpr(call.Args[0])
+		g.emitExpr(w, call.Args[0])
 		return
 	}
 	if _, ok := call.Args[0].(*ast.CallExpr); ok {
@@ -228,13 +222,13 @@ func (g *Generator) emitNewCall(call *ast.CallExpr) {
 	if _, ok := elemType.Underlying().(*types.Struct); ok {
 		// Struct: take address directly.
 		fmt.Fprintf(w, "&")
-		g.emitExpr(call.Args[0])
+		g.emitExpr(w, call.Args[0])
 		return
 	}
 	// Scalar: wrap in compound literal.
 	cType := g.mapType(call, elemType)
 	fmt.Fprintf(w, "&(%s){", cType)
-	g.emitExpr(call.Args[0])
+	g.emitExpr(w, call.Args[0])
 	fmt.Fprintf(w, "}")
 }
 
@@ -253,20 +247,19 @@ func (g *Generator) isPanicCall(expr ast.Expr) bool {
 }
 
 // emitPanicCall emits a panic() builtin call as so_panic(arg).
-func (g *Generator) emitPanicCall(call *ast.CallExpr) {
+func (g *Generator) emitPanicCall(w io.Writer, call *ast.CallExpr) {
 	arg := call.Args[0]
 	typ := g.types.TypeOf(arg)
 	if !g.hasStringType(arg) && !isErrorType(typ) {
 		g.fail(call, "panic() only supports string and error arguments, got %s", typ)
 	}
-	fmt.Fprintf(g.state.writer, "so_panic(")
-	g.emitCArg(arg)
-	fmt.Fprintf(g.state.writer, ")")
+	fmt.Fprintf(w, "so_panic(")
+	g.emitCArg(w, arg)
+	fmt.Fprintf(w, ")")
 }
 
 // emitPrintCall emits a print/println call with an auto-generated format string.
-func (g *Generator) emitPrintCall(call *ast.CallExpr, name string) {
-	w := g.state.writer
+func (g *Generator) emitPrintCall(w io.Writer, call *ast.CallExpr, name string) {
 	if len(call.Args) == 0 {
 		fmt.Fprintf(w, "so_%s(\"\")", name)
 		return
@@ -281,13 +274,13 @@ func (g *Generator) emitPrintCall(call *ast.CallExpr, name string) {
 				fmt.Fprintf(w, "%s", rawStringValue(lit))
 			} else {
 				// String expression: emit expr.len, expr.ptr
-				g.emitExpr(arg)
+				g.emitExpr(w, arg)
 				fmt.Fprintf(w, ".len, ")
-				g.emitExpr(arg)
+				g.emitExpr(w, arg)
 				fmt.Fprintf(w, ".ptr")
 			}
 		} else {
-			g.emitCArg(arg)
+			g.emitCArg(w, arg)
 		}
 	}
 	fmt.Fprintf(w, ")")

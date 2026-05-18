@@ -5,23 +5,24 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
+	"io"
 	"strings"
 )
 
 // emitStringLit emits a string literal, handling both interpreted and raw strings.
-func (g *Generator) emitStringLit(n *ast.BasicLit) {
-	fmt.Fprintf(g.state.writer, "so_str(%s)", rawStringValue(n))
+func (g *Generator) emitStringLit(w io.Writer, n *ast.BasicLit) {
+	fmt.Fprintf(w, "so_str(%s)", rawStringValue(n))
 }
 
 // emitStringLitConcat emits a chain of string literal additions as adjacent C string literals.
-func (g *Generator) emitStringLitConcat(expr ast.Expr) {
+func (g *Generator) emitStringLitConcat(w io.Writer, expr ast.Expr) {
 	switch e := expr.(type) {
 	case *ast.BasicLit:
-		fmt.Fprintf(g.state.writer, "%s", rawStringValue(e))
+		fmt.Fprintf(w, "%s", rawStringValue(e))
 	case *ast.BinaryExpr:
-		g.emitStringLitConcat(e.X)
-		fmt.Fprintf(g.state.writer, " ")
-		g.emitStringLitConcat(e.Y)
+		g.emitStringLitConcat(w, e.X)
+		fmt.Fprintf(w, " ")
+		g.emitStringLitConcat(w, e.Y)
 	}
 }
 

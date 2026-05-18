@@ -151,16 +151,13 @@ func (g *Generator) emitHeaderGenDecl(w io.Writer, decl *ast.GenDecl, dirs direc
 				// packages in definitions, which is not possible with externs:
 				// 	var PointZero = Point{X: sub.Zero, Y: sub.Zero}
 				isIota := i >= len(vs.Values) || containsIota(vs.Values[i])
-				saved := g.state.writer
-				g.state.writer = w
 				fmt.Fprintf(w, "static const %s = ", ct.Decl(cName))
 				if isIota {
-					g.emitConstVal(vs, name)
+					g.emitConstVal(w, vs, name)
 				} else {
-					g.emitExpr(vs.Values[i])
+					g.emitExpr(w, vs.Values[i])
 				}
 				fmt.Fprintf(w, ";\n")
-				g.state.writer = saved
 			case token.VAR:
 				// Build qualifier prefix for extern declarations.
 				qualifier := ""

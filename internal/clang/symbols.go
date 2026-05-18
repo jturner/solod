@@ -261,7 +261,7 @@ func (g *Generator) emitPackageVars(w io.Writer) {
 		switch sym.genDecl.Tok {
 		case token.CONST:
 			for _, spec := range sym.genDecl.Specs {
-				g.emitConstSpec(spec.(*ast.ValueSpec))
+				g.emitConstSpec(w, spec.(*ast.ValueSpec))
 			}
 		case token.VAR:
 			for _, spec := range sym.genDecl.Specs {
@@ -269,7 +269,7 @@ func (g *Generator) emitPackageVars(w io.Writer) {
 				if len(vs.Names) > 0 && g.embeds.vars[vs.Names[0].Name] {
 					continue
 				}
-				g.emitVarSpec(vs, sym.dirs)
+				g.emitVarSpec(w, vs, sym.dirs)
 			}
 		}
 	}

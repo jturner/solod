@@ -34,8 +34,7 @@ func (g *Generator) emitInterfaceTypeSpec(w io.Writer, spec *ast.TypeSpec) {
 
 // emitInterfaceLit emits a compound literal that wraps a concrete value as an interface.
 // Example: (main_Shape){.self = &r, .Area = main_Rect_Area, .Perim = main_Rect_Perim}
-func (g *Generator) emitInterfaceLit(ifaceType types.Type, expr ast.Expr) {
-	w := g.state.writer
+func (g *Generator) emitInterfaceLit(w io.Writer, ifaceType types.Type, expr ast.Expr) {
 	named := ifaceType.(*types.Named)
 	iface := named.Underlying().(*types.Interface)
 
@@ -56,7 +55,7 @@ func (g *Generator) emitInterfaceLit(ifaceType types.Type, expr ast.Expr) {
 	} else {
 		fmt.Fprintf(w, "(%s){.self = &", cIface)
 	}
-	g.emitExpr(expr)
+	g.emitExpr(w, expr)
 	for m := range iface.Methods() {
 		fmt.Fprintf(w, ", .%s = %s_%s", m.Name(), cConcrete, m.Name())
 	}
@@ -84,18 +83,18 @@ func (g *Generator) emitTypeAssertion(w io.Writer, stmt *ast.AssignStmt, ta *ast
 	} else {
 		fmt.Fprintf(w, "%s%s = (", g.indent(), okIdent.Name)
 	}
-	g.emitExpr(ta.X)
+	g.emitExpr(w, ta.X)
 	fmt.Fprintf(w, ".%s == %s_%s);\n", firstMethod, cConcrete, firstMethod)
 }
 
 // emitTypeAssertExpr emits a type assertion.
-func (g *Generator) emitTypeAssertExpr(n *ast.TypeAssertExpr) {
+func (g *Generator) emitTypeAssertExpr(w io.Writer, n *ast.TypeAssertExpr) {
 	sourceType := g.types.TypeOf(n.X)
 	if iface, ok := sourceType.Underlying().(*types.Interface); ok && iface.Empty() {
 		// Empty interface, emit a simple cast: (Type)expr
 		cType := g.mapType(n, g.types.TypeOf(n.Type))
-		fmt.Fprintf(g.state.writer, "(%s)", cType)
-		g.emitExpr(n.X)
+		fmt.Fprintf(w, "(%s)", cType)
+		g.emitExpr(w, n.X)
 		return
 	}
 
@@ -112,23 +111,23 @@ func (g *Generator) emitTypeAssertExpr(n *ast.TypeAssertExpr) {
 	cConcrete := g.mapType(n, concreteNamed)
 	if isPtr {
 		// Pointer assertion: ival.(*Type) → (Type*)ival.self
-		fmt.Fprintf(g.state.writer, "(%s*)", cConcrete)
-		g.emitExpr(n.X)
-		fmt.Fprintf(g.state.writer, ".self")
+		fmt.Fprintf(w, "(%s*)", cConcrete)
+		g.emitExpr(w, n.X)
+		fmt.Fprintf(w, ".self")
 	} else {
 		// Value assertion: ival.(Type) → *((Type*)ival.self)
-		fmt.Fprintf(g.state.writer, "*((%s*)", cConcrete)
-		g.emitExpr(n.X)
-		fmt.Fprintf(g.state.writer, ".self)")
+		fmt.Fprintf(w, "*((%s*)", cConcrete)
+		g.emitExpr(w, n.X)
+		fmt.Fprintf(w, ".self)")
 	}
 }
 
 // emitAnyValue emits an expression as a void* for empty interface storage.
-func (g *Generator) emitAnyValue(node ast.Node, expr ast.Expr) {
+func (g *Generator) emitAnyValue(w io.Writer, node ast.Node, expr ast.Expr) {
 	valType := g.types.TypeOf(expr)
 	if basic, ok := valType.(*types.Basic); ok && basic.Kind() == types.UntypedNil {
 		// Nil values pass as NULL.
-		fmt.Fprintf(g.state.writer, "NULL")
+		fmt.Fprintf(w, "NULL")
 		return
 	}
 
@@ -137,7 +136,7 @@ func (g *Generator) emitAnyValue(node ast.Node, expr ast.Expr) {
 	if isPtr || isIface {
 		// Interface values pass through as-is (already void*).
 		// Pointer values pass through as-is (implicitly convertible to void*).
-		g.emitExpr(expr)
+		g.emitExpr(w, expr)
 		return
 	}
 
@@ -156,15 +155,15 @@ func (g *Generator) emitAnyValue(node ast.Node, expr ast.Expr) {
 	}
 
 	if addressable {
-		fmt.Fprintf(g.state.writer, "&")
-		g.emitExpr(expr)
+		fmt.Fprintf(w, "&")
+		g.emitExpr(w, expr)
 		return
 	}
 
 	cType := g.mapType(node, valType)
-	fmt.Fprintf(g.state.writer, "&(%s){", cType)
-	g.emitExpr(expr)
-	fmt.Fprintf(g.state.writer, "}")
+	fmt.Fprintf(w, "&(%s){", cType)
+	g.emitExpr(w, expr)
+	fmt.Fprintf(w, "}")
 }
 
 // isNamedNonEmptyInterface reports whether t is a named non-empty interface.

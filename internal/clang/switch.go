@@ -8,12 +8,11 @@ import (
 
 // emitSwitchStmt emits a switch statement, wrapping
 // in a scope block if there's an init statement.
-func (g *Generator) emitSwitchStmt(stmt *ast.SwitchStmt) {
-	w := g.state.writer
+func (g *Generator) emitSwitchStmt(w io.Writer, stmt *ast.SwitchStmt) {
 	if stmt.Init != nil {
 		fmt.Fprintf(w, "%s{\n", g.indent())
 		g.state.indent++
-		ast.Walk(g, stmt.Init)
+		g.walkAST(w, stmt.Init)
 		g.emitSwitchBody(w, stmt)
 		g.state.indent--
 		fmt.Fprintf(w, "%s}\n", g.indent())
@@ -43,7 +42,7 @@ func (g *Generator) emitSwitchBody(w io.Writer, stmt *ast.SwitchStmt) {
 
 	// Default-only.
 	if len(cases) == 0 {
-		g.walkStmts(def.Body)
+		g.walkStmts(w, def.Body)
 		return
 	}
 
@@ -60,30 +59,30 @@ func (g *Generator) emitSwitchBody(w io.Writer, stmt *ast.SwitchStmt) {
 				fmt.Fprintf(w, " || ")
 			}
 			if stmt.Tag == nil {
-				g.emitExpr(expr)
+				g.emitExpr(w, expr)
 			} else if isString {
 				fmt.Fprintf(w, "so_string_eq(")
-				g.emitExpr(stmt.Tag)
+				g.emitExpr(w, stmt.Tag)
 				fmt.Fprintf(w, ", ")
-				g.emitExpr(expr)
+				g.emitExpr(w, expr)
 				fmt.Fprintf(w, ")")
 			} else {
-				g.emitExpr(stmt.Tag)
+				g.emitExpr(w, stmt.Tag)
 				fmt.Fprintf(w, " == (")
-				g.emitExpr(expr)
+				g.emitExpr(w, expr)
 				fmt.Fprintf(w, ")")
 			}
 		}
 		fmt.Fprintf(w, ") {\n")
 		g.state.indent++
-		g.walkStmts(cc.Body)
+		g.walkStmts(w, cc.Body)
 		g.state.indent--
 	}
 
 	if def != nil {
 		fmt.Fprintf(w, "%s} else {\n", g.indent())
 		g.state.indent++
-		g.walkStmts(def.Body)
+		g.walkStmts(w, def.Body)
 		g.state.indent--
 	}
 	fmt.Fprintf(w, "%s}\n", g.indent())

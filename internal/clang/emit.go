@@ -54,8 +54,6 @@ func Emit(opts EmitOptions) error {
 
 // State holds the code generation state for the current scope.
 type State struct {
-	writer io.Writer
-
 	// Current indentation level (number of tabs).
 	indent int
 	// Current function's signature (for multi-return).
@@ -117,8 +115,6 @@ func (g *Generator) emitHeader(w io.Writer) {
 
 // emitImpl creates the .c implementation file by walking the AST.
 func (g *Generator) emitImpl(w io.Writer) {
-	g.state.writer = w
-
 	fmt.Fprintf(w, "#include \"%s.h\"\n", g.pkg.Name)
 	for _, inc := range g.includes.impl {
 		fmt.Fprintf(w, "#include %s\n", inc)
@@ -143,7 +139,7 @@ func (g *Generator) emitImpl(w io.Writer) {
 			pos := g.pkg.Fset.Position(file.Pos())
 			fmt.Fprintf(w, "\n// -- %s --\n", filepath.Base(pos.Filename))
 		}
-		ast.Walk(g, file)
+		g.walkAST(w, file)
 	}
 	g.emitInitFunc(w)
 }
@@ -172,8 +168,8 @@ func (g *Generator) emitInitFunc(w io.Writer) {
 
 	fmt.Fprintf(w, "\nstatic void __attribute__((constructor)) %s_init() {\n", g.pkg.Name)
 	g.state.indent++
-	g.walkStmts(decl.Body.List)
-	g.emitDeferredCalls()
+	g.walkStmts(w, decl.Body.List)
+	g.emitDeferredCalls(w)
 	g.state.indent--
 	fmt.Fprintf(w, "}\n")
 

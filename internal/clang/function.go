@@ -104,7 +104,7 @@ func (g *Generator) emitFuncTypeSpec(w io.Writer, spec *ast.TypeSpec) {
 // emitFuncDecl emits a function declaration into the .c file.
 // Inline functions are skipped here - they are emitted into the header
 // by [Generator.emitInlineFuncDecl].
-func (g *Generator) emitFuncDecl(decl *ast.FuncDecl) {
+func (g *Generator) emitFuncDecl(w io.Writer, decl *ast.FuncDecl) {
 	if decl.Body == nil || g.hasExtern(g.types.Defs[decl.Name]) {
 		return
 	}
@@ -114,7 +114,7 @@ func (g *Generator) emitFuncDecl(decl *ast.FuncDecl) {
 	if g.funcDirs[decl].inline {
 		return
 	}
-	g.emitFuncBody(decl)
+	g.emitFuncBody(w, decl)
 }
 
 // emitInlineFuncDecl emits a so:inline function declaration into the header.
@@ -124,10 +124,7 @@ func (g *Generator) emitInlineFuncDecl(w io.Writer, decl *ast.FuncDecl) {
 		g.emitMacroFuncDecl(w, decl)
 		return
 	}
-	saved := g.state.writer
-	g.state.writer = w
-	g.emitFuncBody(decl)
-	g.state.writer = saved
+	g.emitFuncBody(w, decl)
 }
 
 // emitMacroFuncDecl emits a generic so:inline function as a #define macro.
@@ -177,14 +174,13 @@ func (g *Generator) emitMacroFuncDecl(w io.Writer, decl *ast.FuncDecl) {
 	// Capture body output.
 	var buf strings.Builder
 	savedState := g.state
-	g.state.writer = &buf
 	g.state.funcSig = sig
 	g.state.tempCount = 0
 	g.state.indent = 1
 	g.state.inMacro = true
 	g.state.macroParams = macroParams
 	g.state.defers = nil
-	g.walkStmts(decl.Body.List)
+	g.walkStmts(&buf, decl.Body.List)
 	g.state = savedState
 
 	// Determine if returning or void.
@@ -218,14 +214,13 @@ func (g *Generator) emitMacroFuncDecl(w io.Writer, decl *ast.FuncDecl) {
 
 // emitFuncBody emits a function or method body. Shared by [Generator.emitFuncDecl]
 // and [Generator.emitInlineFuncDecl].
-func (g *Generator) emitFuncBody(decl *ast.FuncDecl) {
+func (g *Generator) emitFuncBody(w io.Writer, decl *ast.FuncDecl) {
 	if decl.Recv != nil {
-		g.emitMethodDecl(decl)
+		g.emitMethodDecl(w, decl)
 		return
 	}
 
 	// Init emission state.
-	w := g.state.writer
 	sig := g.funcSig(decl)
 	g.rejectNamedReturns(decl, sig)
 	g.state.funcSig = sig
@@ -244,9 +239,9 @@ func (g *Generator) emitFuncBody(decl *ast.FuncDecl) {
 		fmt.Fprintf(w, "%sso_String _so_argv[argc];\n", g.indent())
 		fmt.Fprintf(w, "%sso_args_init(argc, argv, _so_argv);\n", g.indent())
 	}
-	g.walkStmts(decl.Body.List)
+	g.walkStmts(w, decl.Body.List)
 	if !endsWithReturn(decl.Body.List) {
-		g.emitDeferredCalls()
+		g.emitDeferredCalls(w)
 		if isMainFunc(decl) {
 			fmt.Fprintf(w, "%sreturn 0;\n", g.indent())
 		}
@@ -260,28 +255,26 @@ func (g *Generator) emitFuncBody(decl *ast.FuncDecl) {
 }
 
 // emitFuncCall emits a regular function call.
-func (g *Generator) emitFuncCall(call *ast.CallExpr) {
-	w := g.state.writer
+func (g *Generator) emitFuncCall(w io.Writer, call *ast.CallExpr) {
 	if ident, ok := call.Fun.(*ast.Ident); ok {
 		if bi, ok := g.types.Uses[ident].(*types.Builtin); ok {
-			if g.emitBuiltin(call, ident, bi) {
+			if g.emitBuiltin(w, call, ident, bi) {
 				return
 			}
 		} else {
-			g.emitExpr(call.Fun)
+			g.emitExpr(w, call.Fun)
 		}
 	} else {
-		g.emitExpr(call.Fun)
+		g.emitExpr(w, call.Fun)
 	}
 
 	fmt.Fprintf(w, "(")
-	g.emitFuncCallArgs(call)
+	g.emitFuncCallArgs(w, call)
 	fmt.Fprintf(w, ")")
 }
 
 // emitFuncCallArgs emits the arguments for a function call.
-func (g *Generator) emitFuncCallArgs(call *ast.CallExpr) {
-	w := g.state.writer
+func (g *Generator) emitFuncCallArgs(w io.Writer, call *ast.CallExpr) {
 	var sig *types.Signature
 	if funType := g.types.TypeOf(call.Fun); funType != nil {
 		// Get the function signature to wrap value arguments as interfaces if needed.
@@ -295,14 +288,14 @@ func (g *Generator) emitFuncCallArgs(call *ast.CallExpr) {
 		if call.Ellipsis.IsValid() {
 			g.fail(call, "spreading variadic arguments to an extern function is not supported")
 		}
-		g.emitCArgs(call)
+		g.emitCArgs(w, call)
 		return
 	}
 
 	if sig != nil && sig.Variadic() && !call.Ellipsis.IsValid() {
 		// Variadic call with individual args: pack trailing args into a slice literal.
-		g.emitFixedArgs(call, sig)
-		g.emitVariadicArgs(call, sig)
+		g.emitFixedArgs(w, call, sig)
+		g.emitVariadicArgs(w, call, sig)
 		return
 	}
 
@@ -314,32 +307,30 @@ func (g *Generator) emitFuncCallArgs(call *ast.CallExpr) {
 		if sig != nil && i < sig.Params().Len() {
 			paramType := sig.Params().At(i).Type()
 			if arr, ok := paramType.Underlying().(*types.Array); ok {
-				g.emitArrayArg(call, arg, arr)
+				g.emitArrayArg(w, call, arg, arr)
 			} else {
-				g.emitExprAsType(call, arg, paramType)
+				g.emitExprAsType(w, call, arg, paramType)
 			}
 		} else {
 			// No signature available (e.g. func literal), emit arg as-is.
-			g.emitExpr(arg)
+			g.emitExpr(w, arg)
 		}
 	}
 }
 
 // emitFixedArgs emits the non-variadic arguments for a variadic call.
-func (g *Generator) emitFixedArgs(call *ast.CallExpr, sig *types.Signature) {
-	w := g.state.writer
+func (g *Generator) emitFixedArgs(w io.Writer, call *ast.CallExpr, sig *types.Signature) {
 	fixedCount := sig.Params().Len() - 1
 	for i := 0; i < fixedCount && i < len(call.Args); i++ {
 		if i > 0 {
 			fmt.Fprintf(w, ", ")
 		}
-		g.emitExprAsType(call, call.Args[i], sig.Params().At(i).Type())
+		g.emitExprAsType(w, call, call.Args[i], sig.Params().At(i).Type())
 	}
 }
 
 // emitVariadicArgs packs trailing arguments into an inline so_Slice literal.
-func (g *Generator) emitVariadicArgs(call *ast.CallExpr, sig *types.Signature) {
-	w := g.state.writer
+func (g *Generator) emitVariadicArgs(w io.Writer, call *ast.CallExpr, sig *types.Signature) {
 	fixedCount := sig.Params().Len() - 1
 	variadicArgs := call.Args[fixedCount:]
 
@@ -357,14 +348,13 @@ func (g *Generator) emitVariadicArgs(call *ast.CallExpr, sig *types.Signature) {
 		if i > 0 {
 			fmt.Fprintf(w, ", ")
 		}
-		g.emitExprAsType(call, arg, targetType)
+		g.emitExprAsType(w, call, arg, targetType)
 	}
 	fmt.Fprintf(w, "}, %d, %d}", count, count)
 }
 
 // emitCArgs emits arguments for an extern C function call.
-func (g *Generator) emitCArgs(call *ast.CallExpr) {
-	w := g.state.writer
+func (g *Generator) emitCArgs(w io.Writer, call *ast.CallExpr) {
 	var sig *types.Signature
 	if funType := g.types.TypeOf(call.Fun); funType != nil {
 		sig, _ = funType.Underlying().(*types.Signature)
@@ -376,33 +366,32 @@ func (g *Generator) emitCArgs(call *ast.CallExpr) {
 		// Interface-typed parameters (e.g. Allocator) need emitExprAsType
 		// to convert nil to a zero-initialized struct instead of NULL.
 		if sig != nil && i < sig.Params().Len() && isNamedNonEmptyInterface(sig.Params().At(i).Type()) {
-			g.emitExprAsType(call, arg, sig.Params().At(i).Type())
+			g.emitExprAsType(w, call, arg, sig.Params().At(i).Type())
 		} else {
-			g.emitCArg(arg)
+			g.emitCArg(w, arg)
 		}
 	}
 }
 
 // emitCArg emits an expression decayed to its C-compatible type:
 // string literals to raw C strings, strings to char*, slices to void*.
-func (g *Generator) emitCArg(arg ast.Expr) {
-	w := g.state.writer
+func (g *Generator) emitCArg(w io.Writer, arg ast.Expr) {
 	if lit, ok := arg.(*ast.BasicLit); ok && lit.Kind == token.STRING {
 		fmt.Fprintf(w, "%s", rawStringValue(lit))
 	} else if g.hasStringType(arg) {
 		fmt.Fprintf(w, "so_cstr(")
-		g.emitExpr(arg)
+		g.emitExpr(w, arg)
 		fmt.Fprintf(w, ")")
 	} else if _, ok := g.types.TypeOf(arg).Underlying().(*types.Slice); ok {
 		fmt.Fprintf(w, "so_decay(")
-		g.emitExpr(arg)
+		g.emitExpr(w, arg)
 		fmt.Fprintf(w, ")")
 	} else if isErrorType(g.types.TypeOf(arg)) {
 		fmt.Fprintf(w, "so_error_cstr(")
-		g.emitExpr(arg)
+		g.emitExpr(w, arg)
 		fmt.Fprintf(w, ")")
 	} else {
-		g.emitExpr(arg)
+		g.emitExpr(w, arg)
 	}
 }
 

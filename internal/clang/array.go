@@ -4,22 +4,22 @@ import (
 	"fmt"
 	"go/ast"
 	"go/types"
+	"io"
 )
 
 // emitArrayLit emits a fixed-size array literal as a C initializer list.
 // Example: [5]int{1, 2, 3, 4, 5} → {1, 2, 3, 4, 5}
-func (g *Generator) emitArrayLit(n *ast.CompositeLit) {
-	w := g.state.writer
+func (g *Generator) emitArrayLit(w io.Writer, n *ast.CompositeLit) {
 	fmt.Fprintf(w, "{")
 
 	if hasKeyedElements(n) {
-		g.emitSparseArrayValues(n)
+		g.emitSparseArrayValues(w, n)
 	} else {
 		for i, elt := range n.Elts {
 			if i > 0 {
 				fmt.Fprintf(w, ", ")
 			}
-			g.emitExpr(elt)
+			g.emitExpr(w, elt)
 		}
 	}
 
@@ -28,36 +28,33 @@ func (g *Generator) emitArrayLit(n *ast.CompositeLit) {
 
 // emitArrayArg emits an array expression as a function argument.
 // Composite literals need compound literal syntax (e.g. (so_int[3]){11, 22, 33}).
-func (g *Generator) emitArrayArg(node ast.Node, arg ast.Expr, arr *types.Array) {
-	w := g.state.writer
+func (g *Generator) emitArrayArg(w io.Writer, node ast.Node, arg ast.Expr, arr *types.Array) {
 	if _, isLit := arg.(*ast.CompositeLit); isLit {
 		elemType := g.mapType(node, arr.Elem())
 		fmt.Fprintf(w, "(%s%s)", elemType, arrayDims(arr))
-		g.emitExpr(arg)
+		g.emitExpr(w, arg)
 		return
 	}
-	g.emitExpr(arg)
+	g.emitExpr(w, arg)
 }
 
 // emitArrayCmpOperand emits an array comparison operand.
 // Composite literals need a C compound literal prefix (e.g. (so_int[3]){...})
 // wrapped in extra parentheses so commas inside braces don't split macro args.
-func (g *Generator) emitArrayCmpOperand(expr ast.Expr, arr *types.Array) {
-	w := g.state.writer
+func (g *Generator) emitArrayCmpOperand(w io.Writer, expr ast.Expr, arr *types.Array) {
 	if _, isLit := expr.(*ast.CompositeLit); isLit {
 		elemType := g.mapType(expr, arr.Elem())
 		fmt.Fprintf(w, "((%s%s)", elemType, arrayDims(arr))
-		g.emitExpr(expr)
+		g.emitExpr(w, expr)
 		fmt.Fprintf(w, ")")
 		return
 	}
-	g.emitExpr(expr)
+	g.emitExpr(w, expr)
 }
 
 // emitSliceLit emits a slice literal as a so_Slice compound literal.
 // Example: []int{1, 2, 3, 4} → {(so_int[4]){1, 2, 3, 4}, 4, 4}
-func (g *Generator) emitSliceLit(n *ast.CompositeLit) {
-	w := g.state.writer
+func (g *Generator) emitSliceLit(w io.Writer, n *ast.CompositeLit) {
 	sl := g.types.TypeOf(n).Underlying().(*types.Slice)
 	elemType := g.mapType(n, sl.Elem())
 	size := len(n.Elts)
@@ -70,26 +67,25 @@ func (g *Generator) emitSliceLit(n *ast.CompositeLit) {
 		if i > 0 {
 			fmt.Fprintf(w, ", ")
 		}
-		g.emitExpr(elt)
+		g.emitExpr(w, elt)
 	}
 	fmt.Fprintf(w, "}, %d, %d}", size, size)
 }
 
 // emitSparseArrayValues emits array values using C99 designated initializers
 // for keyed elements. Example: [...]int{100, 3: 400, 500} → 100, [3] = 400, 500
-func (g *Generator) emitSparseArrayValues(n *ast.CompositeLit) {
-	w := g.state.writer
+func (g *Generator) emitSparseArrayValues(w io.Writer, n *ast.CompositeLit) {
 	for i, elt := range n.Elts {
 		if i > 0 {
 			fmt.Fprintf(w, ", ")
 		}
 		if kv, ok := elt.(*ast.KeyValueExpr); ok {
 			fmt.Fprintf(w, "[")
-			g.emitExpr(kv.Key)
+			g.emitExpr(w, kv.Key)
 			fmt.Fprintf(w, "] = ")
-			g.emitExpr(kv.Value)
+			g.emitExpr(w, kv.Value)
 		} else {
-			g.emitExpr(elt)
+			g.emitExpr(w, elt)
 		}
 	}
 }
@@ -97,8 +93,7 @@ func (g *Generator) emitSparseArrayValues(n *ast.CompositeLit) {
 // emitSliceExpr emits a slice expression (e.g. nums[1:4]).
 // For arrays: so_array_slice(T, arr, low, high, size).
 // For slices: so_slice(T, s, low, high).
-func (g *Generator) emitSliceExpr(n *ast.SliceExpr) {
-	w := g.state.writer
+func (g *Generator) emitSliceExpr(w io.Writer, n *ast.SliceExpr) {
 	typ := g.types.TypeOf(n.X).Underlying()
 
 	// Unwrap pointer-to-array: p[a:b] becomes (*p)[a:b].
@@ -120,26 +115,26 @@ func (g *Generator) emitSliceExpr(n *ast.SliceExpr) {
 		}
 		if ptrDeref {
 			fmt.Fprintf(w, "(*")
-			g.emitExpr(n.X)
+			g.emitExpr(w, n.X)
 			fmt.Fprintf(w, ")")
 		} else {
-			g.emitExpr(n.X)
+			g.emitExpr(w, n.X)
 		}
 		fmt.Fprintf(w, ", ")
 		if n.Low != nil {
-			g.emitExpr(n.Low)
+			g.emitExpr(w, n.Low)
 		} else {
 			fmt.Fprintf(w, "0")
 		}
 		fmt.Fprintf(w, ", ")
 		if n.High != nil {
-			g.emitExpr(n.High)
+			g.emitExpr(w, n.High)
 		} else {
 			fmt.Fprintf(w, "%d", t.Len())
 		}
 		if n.Slice3 {
 			fmt.Fprintf(w, ", ")
-			g.emitExpr(n.Max)
+			g.emitExpr(w, n.Max)
 			fmt.Fprintf(w, ")")
 		} else {
 			fmt.Fprintf(w, ", %d)", t.Len())
@@ -151,18 +146,18 @@ func (g *Generator) emitSliceExpr(n *ast.SliceExpr) {
 			break
 		}
 		fmt.Fprintf(w, "so_string_slice(")
-		g.emitExpr(n.X)
+		g.emitExpr(w, n.X)
 		fmt.Fprintf(w, ", ")
 		if n.Low != nil {
-			g.emitExpr(n.Low)
+			g.emitExpr(w, n.Low)
 		} else {
 			fmt.Fprintf(w, "0")
 		}
 		fmt.Fprintf(w, ", ")
 		if n.High != nil {
-			g.emitExpr(n.High)
+			g.emitExpr(w, n.High)
 		} else {
-			g.emitExpr(n.X)
+			g.emitExpr(w, n.X)
 			fmt.Fprintf(w, ".len")
 		}
 		fmt.Fprintf(w, ")")
@@ -174,23 +169,23 @@ func (g *Generator) emitSliceExpr(n *ast.SliceExpr) {
 		} else {
 			fmt.Fprintf(w, "so_slice(%s, ", elemType)
 		}
-		g.emitExpr(n.X)
+		g.emitExpr(w, n.X)
 		fmt.Fprintf(w, ", ")
 		if n.Low != nil {
-			g.emitExpr(n.Low)
+			g.emitExpr(w, n.Low)
 		} else {
 			fmt.Fprintf(w, "0")
 		}
 		fmt.Fprintf(w, ", ")
 		if n.High != nil {
-			g.emitExpr(n.High)
+			g.emitExpr(w, n.High)
 		} else {
-			g.emitExpr(n.X)
+			g.emitExpr(w, n.X)
 			fmt.Fprintf(w, ".len")
 		}
 		if n.Slice3 {
 			fmt.Fprintf(w, ", ")
-			g.emitExpr(n.Max)
+			g.emitExpr(w, n.Max)
 		}
 		fmt.Fprintf(w, ")")
 

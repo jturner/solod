@@ -11,109 +11,102 @@ import (
 	"strings"
 )
 
-// Visit implements the ast.Visitor interface to walk the AST and generate code.
-func (g *Generator) Visit(node ast.Node) ast.Visitor {
-	if node == nil {
-		return nil
-	}
-
-	defer func() {
-		if r := recover(); r != nil {
-			// Only log once - the deepest Visit that catches the panic.
-			if !g.panicked {
-				g.panicked = true
-				pos := g.pkg.Fset.Position(node.Pos())
-				fmt.Fprintf(os.Stderr, "%s: %v\n", pos, r)
-				if srcLine, err := readSourceLine(pos.Filename, pos.Line); err == nil {
-					fmt.Fprintf(os.Stderr, "%s\n", srcLine)
+// walkAST traverses the AST rooted at root, dispatching to emit methods.
+// The io.Writer is captured by the closure, eliminating the need for g.state.writer.
+func (g *Generator) walkAST(w io.Writer, root ast.Node) {
+	ast.Inspect(root, func(node ast.Node) bool {
+		defer func() {
+			if r := recover(); r != nil {
+				if !g.panicked {
+					g.panicked = true
+					pos := g.pkg.Fset.Position(node.Pos())
+					fmt.Fprintf(os.Stderr, "%s: %v\n", pos, r)
+					if srcLine, err := readSourceLine(pos.Filename, pos.Line); err == nil {
+						fmt.Fprintf(os.Stderr, "%s\n", srcLine)
+					}
 				}
+				panic(r)
 			}
-			panic(r)
+		}()
+
+		switch n := node.(type) {
+		case *ast.AssignStmt:
+			g.emitAssignStmt(w, n)
+			return false
+		case *ast.BlockStmt:
+			g.emitBlockStmt(w, n)
+			return false
+		case *ast.BranchStmt:
+			g.emitBranchStmt(w, n)
+			return false
+		case *ast.DeclStmt:
+			return true // recurse into inner Decl
+		case *ast.DeferStmt:
+			g.emitDeferStmt(w, n)
+			return false
+		case *ast.ExprStmt:
+			g.emitExprStmt(w, n)
+			return false
+		case *ast.ForStmt:
+			g.emitForStmt(w, n)
+			return false
+		case *ast.FuncDecl:
+			g.emitFuncDecl(w, n)
+			return false
+		case *ast.GenDecl:
+			g.emitGenDecl(w, n)
+			return false
+		case *ast.Ident:
+			return true // package name etc
+		case *ast.IfStmt:
+			g.emitIfStmt(w, n)
+			return false
+		case *ast.IncDecStmt:
+			g.emitIncDecStmt(w, n)
+			return false
+		case *ast.LabeledStmt:
+			g.emitLabeledStmt(w, n)
+			return false
+		case *ast.RangeStmt:
+			g.emitRangeStmt(w, n)
+			return false
+		case *ast.ReturnStmt:
+			g.emitReturnStmt(w, n)
+			return false
+		case *ast.SwitchStmt:
+			g.emitSwitchStmt(w, n)
+			return false
 		}
-	}()
 
-	switch n := node.(type) {
-	case *ast.AssignStmt:
-		g.emitAssignStmt(n)
-		return nil
-	case *ast.BlockStmt:
-		g.emitBlockStmt(n)
-		return nil
-	case *ast.BranchStmt:
-		g.emitBranchStmt(n)
-		return nil
-	case *ast.DeclStmt:
-		// Declaration inside a function body -
-		// walk into the inner Decl.
-		return g
-	case *ast.DeferStmt:
-		g.emitDeferStmt(n)
-		return nil
-	case *ast.ExprStmt:
-		g.emitExprStmt(n)
-		return nil
-	case *ast.ForStmt:
-		g.emitForStmt(n)
-		return nil
-	case *ast.FuncDecl:
-		g.emitFuncDecl(n)
-		return nil
-	case *ast.GenDecl:
-		g.emitGenDecl(n)
-		return nil
-	case *ast.Ident:
-		// Package name or other identifiers
-		// visited during file walk.
-		return g
-	case *ast.IfStmt:
-		g.emitIfStmt(n)
-		return nil
-	case *ast.IncDecStmt:
-		g.emitIncDecStmt(n)
-		return nil
-	case *ast.LabeledStmt:
-		g.emitLabeledStmt(n)
-		return nil
-	case *ast.RangeStmt:
-		g.emitRangeStmt(n)
-		return nil
-	case *ast.ReturnStmt:
-		g.emitReturnStmt(n)
-		return nil
-	case *ast.SwitchStmt:
-		g.emitSwitchStmt(n)
-		return nil
-	}
+		// Fail on unsupported expressions, statements, and declarations.
+		switch node.(type) {
+		case ast.Stmt:
+			g.fail(node, "unsupported statement: %T", node)
+		case ast.Decl:
+			g.fail(node, "unsupported declaration: %T", node)
+		case ast.Expr:
+			g.fail(node, "unsupported expression: %T", node)
+		}
 
-	// Fail on unsupported expressions, statements, and declarations.
-	switch node.(type) {
-	case ast.Stmt:
-		g.fail(node, "unsupported statement: %T", node)
-	case ast.Decl:
-		g.fail(node, "unsupported declaration: %T", node)
-	case ast.Expr:
-		g.fail(node, "unsupported expression: %T", node)
-	}
-
-	return g
+		return true
+	})
 }
 
 // emitBlockStmt emits a bare block statement (scoping block inside a function body).
-func (g *Generator) emitBlockStmt(stmt *ast.BlockStmt) {
+func (g *Generator) emitBlockStmt(w io.Writer, stmt *ast.BlockStmt) {
 	defers := g.state.defers // stash outer defers
 	g.state.defers = nil
-	fmt.Fprintf(g.state.writer, "%s{\n", g.indent())
-	g.emitBlock(stmt)
+	fmt.Fprintf(w, "%s{\n", g.indent())
+	g.emitBlock(w, stmt)
 	g.state.indent++
-	g.emitDeferredCalls()
+	g.emitDeferredCalls(w)
 	g.state.indent--
 	g.state.defers = defers // restore outer defers
-	fmt.Fprintf(g.state.writer, "%s}\n", g.indent())
+	fmt.Fprintf(w, "%s}\n", g.indent())
 }
 
 // emitBranchStmt emits a break, continue, or goto statement.
-func (g *Generator) emitBranchStmt(stmt *ast.BranchStmt) {
-	w := g.state.writer
+func (g *Generator) emitBranchStmt(w io.Writer, stmt *ast.BranchStmt) {
 	if stmt.Label != nil && stmt.Tok == token.BREAK {
 		// Labeled break is translated to goto because C has no "break label".
 		// ("break label" -> "goto label_end").
@@ -129,21 +122,18 @@ func (g *Generator) emitBranchStmt(stmt *ast.BranchStmt) {
 
 // emitDeferStmt emits a defer statement. Deferred calls are captured
 // and emitted inline before returns, panics, and function end.
-func (g *Generator) emitDeferStmt(stmt *ast.DeferStmt) {
+func (g *Generator) emitDeferStmt(w io.Writer, stmt *ast.DeferStmt) {
+	_ = w // defer statement does not emit anything
 	var buf strings.Builder
-	saved := g.state.writer
-	g.state.writer = &buf
-	g.emitCallExpr(stmt.Call)
-	g.state.writer = saved
+	g.emitCallExpr(&buf, stmt.Call)
 	g.state.defers = append(g.state.defers, buf.String())
 }
 
 // emitExprStmt emits an expression statement.
 // Emits deferred generic calls before panic() calls.
-func (g *Generator) emitExprStmt(stmt *ast.ExprStmt) {
-	w := g.state.writer
+func (g *Generator) emitExprStmt(w io.Writer, stmt *ast.ExprStmt) {
 	if g.isPanicCall(stmt.X) {
-		g.emitDeferredCalls()
+		g.emitDeferredCalls(w)
 	}
 	// c.Raw intrinsic: emit the string literal as a raw C block.
 	if raw, ok := g.cIntrinsic(stmt.X); ok {
@@ -153,64 +143,62 @@ func (g *Generator) emitExprStmt(stmt *ast.ExprStmt) {
 		return
 	}
 	fmt.Fprintf(w, "%s", g.indent())
-	g.emitExpr(stmt.X)
+	g.emitExpr(w, stmt.X)
 	fmt.Fprintf(w, ";\n")
 }
 
 // emitForStmt emits a for statement.
-func (g *Generator) emitForStmt(stmt *ast.ForStmt) {
-	w := g.state.writer
+func (g *Generator) emitForStmt(w io.Writer, stmt *ast.ForStmt) {
 	fmt.Fprintf(w, "%sfor (", g.indent())
 
 	if stmt.Init != nil {
-		g.emitForClause(stmt.Init)
+		g.emitForClause(w, stmt.Init)
 	}
 	fmt.Fprintf(w, ";")
 
 	if stmt.Cond != nil {
 		fmt.Fprintf(w, " ")
-		g.emitExpr(stmt.Cond)
+		g.emitExpr(w, stmt.Cond)
 	}
 	fmt.Fprintf(w, ";")
 
 	if stmt.Post != nil {
 		fmt.Fprintf(w, " ")
-		g.emitForClause(stmt.Post)
+		g.emitForClause(w, stmt.Post)
 	}
 
 	fmt.Fprintf(w, ") {\n")
-	g.emitBlock(stmt.Body)
+	g.emitBlock(w, stmt.Body)
 	fmt.Fprintf(w, "%s}\n", g.indent())
 }
 
 // emitForClause emits a simple statement inline (no indent, no semicolon)
 // for use in for-loop Init and Post positions.
-func (g *Generator) emitForClause(stmt ast.Stmt) {
-	w := g.state.writer
+func (g *Generator) emitForClause(w io.Writer, stmt ast.Stmt) {
 	switch s := stmt.(type) {
 	case *ast.AssignStmt:
 		if s.Tok == token.DEFINE {
 			ident := s.Lhs[0].(*ast.Ident)
 			cType := g.mapType(s, g.types.Defs[ident].Type())
 			fmt.Fprintf(w, "%s %s = ", cType, ident.Name)
-			g.emitExpr(s.Rhs[0])
+			g.emitExpr(w, s.Rhs[0])
 		} else {
-			g.emitExpr(s.Lhs[0])
+			g.emitExpr(w, s.Lhs[0])
 			fmt.Fprintf(w, " %s ", s.Tok)
-			g.emitExpr(s.Rhs[0])
+			g.emitExpr(w, s.Rhs[0])
 		}
 	case *ast.IncDecStmt:
-		g.emitExpr(s.X)
+		g.emitExpr(w, s.X)
 		fmt.Fprintf(w, "%s", s.Tok)
 	case *ast.ExprStmt:
-		g.emitExpr(s.X)
+		g.emitExpr(w, s.X)
 	default:
 		g.fail(stmt, "unsupported for-loop clause: %T", stmt)
 	}
 }
 
 // emitGenDecl emits a general declaration (var, import, etc.).
-func (g *Generator) emitGenDecl(decl *ast.GenDecl) {
+func (g *Generator) emitGenDecl(w io.Writer, decl *ast.GenDecl) {
 	if found, _ := parseExtern(decl.Doc); found {
 		return
 	}
@@ -224,7 +212,7 @@ func (g *Generator) emitGenDecl(decl *ast.GenDecl) {
 			return
 		}
 		for _, spec := range decl.Specs {
-			g.emitConstSpec(spec.(*ast.ValueSpec))
+			g.emitConstSpec(w, spec.(*ast.ValueSpec))
 		}
 	case token.VAR:
 		if g.state.indent == 0 {
@@ -237,7 +225,7 @@ func (g *Generator) emitGenDecl(decl *ast.GenDecl) {
 				// Do not emit variables that are used as markers for embedded files.
 				continue
 			}
-			g.emitVarSpec(vs, directives{})
+			g.emitVarSpec(w, vs, directives{})
 		}
 	case token.TYPE:
 		// Package-level types are emitted by emitUnexportedTypes (unexported)
@@ -247,8 +235,8 @@ func (g *Generator) emitGenDecl(decl *ast.GenDecl) {
 		}
 		for _, spec := range decl.Specs {
 			ts := spec.(*ast.TypeSpec)
-			g.emitComments(g.state.writer, decl, ts)
-			g.emitTypeSpec(g.state.writer, ts, directives{})
+			g.emitComments(w, decl, ts)
+			g.emitTypeSpec(w, ts, directives{})
 		}
 	default:
 		g.fail(decl, "unsupported GenDecl token: %s", decl.Tok)
@@ -256,8 +244,7 @@ func (g *Generator) emitGenDecl(decl *ast.GenDecl) {
 }
 
 // emitConstSpec emits a single constant specification.
-func (g *Generator) emitConstSpec(spec *ast.ValueSpec) {
-	w := g.state.writer
+func (g *Generator) emitConstSpec(w io.Writer, spec *ast.ValueSpec) {
 	for i, name := range spec.Names {
 		typ := g.types.Defs[name].Type()
 		cType := g.mapType(spec, typ)
@@ -280,16 +267,16 @@ func (g *Generator) emitConstSpec(spec *ast.ValueSpec) {
 		// Emit the constant declaration.
 		fmt.Fprintf(w, "%s%sconst %s %s = ", g.indent(), specifier, cType, constName)
 		if isIota {
-			g.emitConstVal(spec, name)
+			g.emitConstVal(w, spec, name)
 		} else {
-			g.emitExpr(spec.Values[i])
+			g.emitExpr(w, spec.Values[i])
 		}
 		fmt.Fprintf(w, ";\n")
 	}
 }
 
 // emitConstVal emits the type-checker-resolved value of a constant.
-func (g *Generator) emitConstVal(node ast.Node, name *ast.Ident) {
+func (g *Generator) emitConstVal(w io.Writer, node ast.Node, name *ast.Ident) {
 	obj := g.types.Defs[name].(*types.Const)
 	val := obj.Val()
 	switch val.Kind() {
@@ -298,7 +285,7 @@ func (g *Generator) emitConstVal(node ast.Node, name *ast.Ident) {
 		if !ok {
 			g.fail(node, "iota value overflows int64")
 		}
-		fmt.Fprintf(g.state.writer, "%d", v)
+		fmt.Fprintf(w, "%d", v)
 	default:
 		g.fail(node, "unsupported iota constant kind: %s", val.Kind())
 	}
@@ -306,9 +293,7 @@ func (g *Generator) emitConstVal(node ast.Node, name *ast.Ident) {
 
 // emitVarSpec emits a single var specification (e.g. `var a int = 1`).
 // dirs provides parsed so: directives for package-level declarations.
-func (g *Generator) emitVarSpec(spec *ast.ValueSpec, dirs directives) {
-	w := g.state.writer
-
+func (g *Generator) emitVarSpec(w io.Writer, spec *ast.ValueSpec, dirs directives) {
 	// Detect self-shadowing in local variable declarations.
 	if g.state.indent > 0 && len(spec.Values) > 0 {
 		rhsNames := collectIdents(spec.Values...)
@@ -337,7 +322,7 @@ func (g *Generator) emitVarSpec(spec *ast.ValueSpec, dirs directives) {
 			cType := g.mapType(spec, typ)
 			fmt.Fprintf(w, "%s%s %s = ", g.indent(), cType, name.Name)
 			if len(spec.Values) > i {
-				g.emitExprAsType(spec, spec.Values[i], typ)
+				g.emitExprAsType(w, spec, spec.Values[i], typ)
 			} else {
 				fmt.Fprintf(w, "%s", g.zeroValue(spec, typ))
 			}
@@ -354,7 +339,7 @@ func (g *Generator) emitVarSpec(spec *ast.ValueSpec, dirs directives) {
 				}
 				fmt.Fprintf(w, ", %s = ", nextName.Name)
 				if len(spec.Values) > i {
-					g.emitExprAsType(spec, spec.Values[i], nextTyp)
+					g.emitExprAsType(w, spec, spec.Values[i], nextTyp)
 				} else {
 					fmt.Fprintf(w, "%s", g.zeroValue(spec, nextTyp))
 				}
@@ -392,7 +377,7 @@ func (g *Generator) emitVarSpec(spec *ast.ValueSpec, dirs directives) {
 		if len(spec.Values) > i {
 			// Has explicit initializer.
 			fmt.Fprintf(w, "%s%s%s = ", g.indent(), specifier, ct.Decl(cName))
-			g.emitExprAsType(spec, spec.Values[i], typ)
+			g.emitExprAsType(w, spec, spec.Values[i], typ)
 			fmt.Fprintf(w, ";\n")
 		} else {
 			// No initializer, emit zero value.
@@ -449,12 +434,11 @@ func (g *Generator) emitTypeSpec(w io.Writer, spec *ast.TypeSpec, dirs directive
 }
 
 // emitIfStmt emits an if statement, wrapping in a scope block if there's an init statement.
-func (g *Generator) emitIfStmt(stmt *ast.IfStmt) {
-	w := g.state.writer
+func (g *Generator) emitIfStmt(w io.Writer, stmt *ast.IfStmt) {
 	if stmt.Init != nil {
 		fmt.Fprintf(w, "%s{\n", g.indent())
 		g.state.indent++
-		ast.Walk(g, stmt.Init)
+		g.walkAST(w, stmt.Init)
 		g.emitIfInner(w, stmt, g.indent())
 		g.state.indent--
 		fmt.Fprintf(w, "%s}\n", g.indent())
@@ -468,9 +452,9 @@ func (g *Generator) emitIfStmt(stmt *ast.IfStmt) {
 func (g *Generator) emitIfInner(w io.Writer, stmt *ast.IfStmt, prefix string) {
 	// Emit the if condition and body.
 	fmt.Fprintf(w, "%sif (", prefix)
-	g.emitExpr(stmt.Cond)
+	g.emitExpr(w, stmt.Cond)
 	fmt.Fprintf(w, ") {\n")
-	g.emitBlock(stmt.Body)
+	g.emitBlock(w, stmt.Body)
 	if stmt.Else == nil {
 		fmt.Fprintf(w, "%s}\n", g.indent())
 		return
@@ -483,7 +467,7 @@ func (g *Generator) emitIfInner(w io.Writer, stmt *ast.IfStmt, prefix string) {
 		g.emitIfInner(w, els, "")
 	case *ast.BlockStmt:
 		fmt.Fprintf(w, "%s} else {\n", g.indent())
-		g.emitBlock(els)
+		g.emitBlock(w, els)
 		fmt.Fprintf(w, "%s}\n", g.indent())
 	default:
 		g.fail(stmt.Else, "unsupported else clause: %T", stmt.Else)
@@ -491,32 +475,30 @@ func (g *Generator) emitIfInner(w io.Writer, stmt *ast.IfStmt, prefix string) {
 }
 
 // emitIncDecStmt emits an increment or decrement statement.
-func (g *Generator) emitIncDecStmt(stmt *ast.IncDecStmt) {
-	w := g.state.writer
+func (g *Generator) emitIncDecStmt(w io.Writer, stmt *ast.IncDecStmt) {
 	fmt.Fprintf(w, "%s", g.indent())
-	g.emitExpr(stmt.X)
+	g.emitExpr(w, stmt.X)
 	fmt.Fprintf(w, "%s;\n", stmt.Tok)
 }
 
 // emitLabeledStmt emits a label followed by its statement.
-func (g *Generator) emitLabeledStmt(stmt *ast.LabeledStmt) {
-	w := g.state.writer
+func (g *Generator) emitLabeledStmt(w io.Writer, stmt *ast.LabeledStmt) {
 	switch stmt.Stmt.(type) {
 	case *ast.ForStmt, *ast.RangeStmt, *ast.SwitchStmt:
 		// For loops and switches, only emit the end label
 		// (for "break label" -> "goto label_end").
-		ast.Walk(g, stmt.Stmt)
+		g.walkAST(w, stmt.Stmt)
 		fmt.Fprintf(w, "%s%s_end:;\n", g.indent(), stmt.Label.Name)
 	default:
 		// For other labels (regular goto targets),
 		// emit the label before the statement.
 		fmt.Fprintf(w, "%s%s:;\n", g.indent(), stmt.Label.Name)
-		ast.Walk(g, stmt.Stmt)
+		g.walkAST(w, stmt.Stmt)
 	}
 }
 
 // emitRangeStmt emits a range-based for statement.
-func (g *Generator) emitRangeStmt(stmt *ast.RangeStmt) {
+func (g *Generator) emitRangeStmt(w io.Writer, stmt *ast.RangeStmt) {
 	typ := g.types.TypeOf(stmt.X).Underlying()
 	// Unwrap pointer-to-array so `for range p` dispatches to emitArrayRange.
 	if ptr, ok := typ.(*types.Pointer); ok {
@@ -526,36 +508,35 @@ func (g *Generator) emitRangeStmt(stmt *ast.RangeStmt) {
 	}
 	switch t := typ.(type) {
 	case *types.Array:
-		g.emitArrayRange(stmt)
+		g.emitArrayRange(w, stmt)
 	case *types.Slice:
-		g.emitSliceRange(stmt)
+		g.emitSliceRange(w, stmt)
 	case *types.Map:
-		g.emitMapRange(stmt)
+		g.emitMapRange(w, stmt)
 	case *types.Basic:
 		if t.Kind() == types.String || t.Kind() == types.UntypedString {
-			g.emitStringRange(stmt)
+			g.emitStringRange(w, stmt)
 		} else {
-			g.emitIntRange(stmt)
+			g.emitIntRange(w, stmt)
 		}
 	default:
-		g.emitIntRange(stmt)
+		g.emitIntRange(w, stmt)
 	}
 }
 
 // emitReturnStmt emits a return statement, preceded by any deferred generic calls.
-func (g *Generator) emitReturnStmt(stmt *ast.ReturnStmt) {
-	w := g.state.writer
+func (g *Generator) emitReturnStmt(w io.Writer, stmt *ast.ReturnStmt) {
 	if g.state.inMacro {
 		// In macro mode: "return X" becomes just "X;", void return is a no-op.
 		if len(stmt.Results) > 0 {
 			fmt.Fprintf(w, "%s", g.indent())
-			g.emitReturnExpr(stmt)
+			g.emitReturnExpr(w, stmt)
 			fmt.Fprintf(w, ";\n")
 		}
 		return
 	}
 
-	g.emitDeferredCalls()
+	g.emitDeferredCalls(w)
 
 	if len(stmt.Results) == 0 {
 		fmt.Fprintf(w, "%sreturn;\n", g.indent())
@@ -563,19 +544,17 @@ func (g *Generator) emitReturnStmt(stmt *ast.ReturnStmt) {
 	}
 
 	fmt.Fprintf(w, "%sreturn ", g.indent())
-	g.emitReturnExpr(stmt)
+	g.emitReturnExpr(w, stmt)
 	fmt.Fprintf(w, ";\n")
 }
 
 // emitReturnExpr emits the return value expression (without "return" keyword or ";").
 // Handles single-return and multi-return compound literals.
-func (g *Generator) emitReturnExpr(stmt *ast.ReturnStmt) {
-	w := g.state.writer
-
+func (g *Generator) emitReturnExpr(w io.Writer, stmt *ast.ReturnStmt) {
 	// Single return value: emit directly.
 	if len(stmt.Results) == 1 {
 		retType := g.state.funcSig.Results().At(0).Type()
-		g.emitExprAsType(stmt, stmt.Results[0], retType)
+		g.emitExprAsType(w, stmt, stmt.Results[0], retType)
 		return
 	}
 
@@ -583,22 +562,22 @@ func (g *Generator) emitReturnExpr(stmt *ast.ReturnStmt) {
 	info := g.multiReturnFields(stmt, g.state.funcSig)
 	if info.resultType != "" {
 		fmt.Fprintf(w, "(%s){.val = ", info.resultType)
-		g.emitExpr(stmt.Results[0])
+		g.emitExpr(w, stmt.Results[0])
 		fmt.Fprintf(w, ", .err = ")
 		errType := g.state.funcSig.Results().At(1).Type()
-		g.emitExprAsType(stmt, stmt.Results[1], errType)
+		g.emitExprAsType(w, stmt, stmt.Results[1], errType)
 		fmt.Fprintf(w, "}")
 		return
 	}
 	fmt.Fprintf(w, "(%s){.val = ", info.typeName())
-	g.emitExpr(stmt.Results[0])
+	g.emitExpr(w, stmt.Results[0])
 	if info.hasError {
 		fmt.Fprintf(w, ", .err = ")
 		errType := g.state.funcSig.Results().At(1).Type()
-		g.emitExprAsType(stmt, stmt.Results[1], errType)
+		g.emitExprAsType(w, stmt, stmt.Results[1], errType)
 	} else {
 		fmt.Fprintf(w, ", .val2 = ")
-		g.emitExpr(stmt.Results[1])
+		g.emitExpr(w, stmt.Results[1])
 	}
 	fmt.Fprintf(w, "}")
 }
@@ -629,29 +608,28 @@ func (g *Generator) emitComments(w io.Writer, nodes ...ast.Node) bool {
 }
 
 // emitDeferredCalls emits saved generic deferred calls in LIFO order.
-func (g *Generator) emitDeferredCalls() {
+func (g *Generator) emitDeferredCalls(w io.Writer) {
 	for i := len(g.state.defers) - 1; i >= 0; i-- {
-		fmt.Fprintf(g.state.writer, "%s%s;\n", g.indent(), g.state.defers[i])
+		fmt.Fprintf(w, "%s%s;\n", g.indent(), g.state.defers[i])
 	}
 }
 
 // emitBlock emits the statements within a block, adjusting indentation.
-func (g *Generator) emitBlock(block *ast.BlockStmt) {
+func (g *Generator) emitBlock(w io.Writer, block *ast.BlockStmt) {
 	g.state.indent++
-	g.walkStmts(block.List)
+	g.walkStmts(w, block.List)
 	g.state.indent--
 }
 
 // walkStmts walks statements, emitting any associated comments before each.
-func (g *Generator) walkStmts(stmts []ast.Stmt) {
-	w := g.state.writer
+func (g *Generator) walkStmts(w io.Writer, stmts []ast.Stmt) {
 	for _, stmt := range stmts {
 		for _, cg := range g.comments[stmt] {
 			for _, c := range cg.List {
 				fmt.Fprintf(w, "%s%s\n", g.indent(), strings.TrimSpace(c.Text))
 			}
 		}
-		ast.Walk(g, stmt)
+		g.walkAST(w, stmt)
 	}
 }
 
