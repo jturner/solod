@@ -89,6 +89,11 @@
 typedef uint8_t so_byte;
 typedef int32_t so_rune;
 
+typedef struct {
+    uint64_t hi;
+    uint64_t lo;
+} so_uint128;
+
 #if SIZE_MAX == 0xFFFFFFFFu
 #define so_int_bits 32
 #define so_max_int INT32_MAX

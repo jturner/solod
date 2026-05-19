@@ -28,8 +28,8 @@ func TestPow10(t *testing.T) {
 		res := intPow10(tt.exp10)
 		if res.mant != tt.mant || res.exp != tt.exp2 {
 			t.Errorf("intPow10(%d) = %#016x, %#016x, %d, %v want %#016x,%#016x, %d, %v",
-				tt.exp10, res.mant.Hi, res.mant.Lo, res.exp, res.ok,
-				tt.mant.Hi, tt.mant.Lo, tt.exp2, tt.ok)
+				tt.exp10, res.mant.hi, res.mant.lo, res.exp, res.ok,
+				tt.mant.hi, tt.mant.lo, tt.exp2, tt.ok)
 		}
 	}
 
@@ -39,18 +39,18 @@ func TestPow10(t *testing.T) {
 			t.Errorf("intPow10(%d) not ok", p)
 			continue
 		}
-		// Note: -64 instead of -128 because we only used mant.Hi, not all of mant.
-		have := math.Ldexp(float64(res.mant.Hi), res.exp-64)
+		// Note: -64 instead of -128 because we only used mant.hi, not all of mant.
+		have := math.Ldexp(float64(res.mant.hi), res.exp-64)
 		want := math.Pow(10, float64(p))
 		if math.Abs(have-want)/want > 0.00001 {
-			t.Errorf("intPow10(%d) = %#016x%016x/2^128 * 2^%d = %g want ~%g", p, res.mant.Hi, res.mant.Lo, res.exp, have, want)
+			t.Errorf("intPow10(%d) = %#016x%016x/2^128 * 2^%d = %g want ~%g", p, res.mant.hi, res.mant.lo, res.exp, have, want)
 		}
 	}
 
 }
 
 func u128(hi, lo uint64) uint128 {
-	return uint128{Hi: hi, Lo: lo}
+	return uint128{hi: hi, lo: lo}
 }
 
 var umul192Tests = []struct {
@@ -69,7 +69,7 @@ func TestUmul192(t *testing.T) {
 		res := umul192(tt.x, tt.y)
 		if res.hi != tt.hi || res.mid != tt.mid || res.lo != tt.lo {
 			t.Errorf("umul192(%#x, {%#x,%#x}) = %#x, %#x, %#x, want %#x, %#x, %#x",
-				tt.x, tt.y.Hi, tt.y.Lo, res.hi, res.mid, res.lo, tt.hi, tt.mid, tt.lo)
+				tt.x, tt.y.hi, tt.y.lo, res.hi, res.mid, res.lo, tt.hi, tt.mid, tt.lo)
 		}
 	}
 }

@@ -181,12 +181,12 @@ func dboxDigits(d *decimalSlice, mant uint64, exp int) {
 
 // uadd128 returns the full 128 bits of u + n.
 func uadd128(u uint128, n uint64) uint128 {
-	sum := uint64(u.Lo + n)
+	sum := uint64(u.lo + n)
 	// Check if lo is wrapped around.
-	if sum < u.Lo {
-		u.Hi++
+	if sum < u.lo {
+		u.hi++
 	}
-	u.Lo = sum
+	u.lo = sum
 	return u
 }
 
@@ -230,16 +230,16 @@ func umul128Upper64(x, y uint64) uint64 {
 
 // umul192Upper128 returns the upper 128 bits (out of 192 bits) of x * y.
 func umul192Upper128(x uint64, y uint128) uint128 {
-	r := umul128(x, y.Hi)
-	t := umul128Upper64(x, y.Lo)
+	r := umul128(x, y.hi)
+	t := umul128Upper64(x, y.lo)
 	return uadd128(r, t)
 }
 
 // umul192Lower128 returns the lower 128 bits (out of 192 bits) of x * y.
 func umul192Lower128(x uint64, y uint128) uint128 {
-	high := x * y.Hi
-	highLow := umul128(x, y.Lo)
-	return uint128{uint64(high + highLow.Hi), highLow.Lo}
+	high := x * y.hi
+	highLow := umul128(x, y.lo)
+	return uint128{uint64(high + highLow.hi), highLow.lo}
 }
 
 // dboxMulPow64 computes x^(i), y^(i), z^(i)
@@ -247,8 +247,8 @@ func umul192Lower128(x uint64, y uint128) uint128 {
 // and also checks if x^(f), y^(f), z^(f) == 0 (section 5.2.1).
 func dboxMulPow64(u uint64, phi uint128) (uint64, bool) {
 	r := umul192Upper128(u, phi)
-	intPart := r.Hi
-	isInt := r.Lo == 0
+	intPart := r.hi
+	isInt := r.lo == 0
 	return intPart, isInt
 }
 
@@ -267,8 +267,8 @@ func dboxMulPow32(u uint32, phi uint64) (uint32, bool) {
 // and also checks if x^(f), y^(f), z^(f) = 0 (section 5.2.1).
 func dboxParity64(mant2 uint64, phi uint128, beta int) (bool, bool) {
 	r := umul192Lower128(mant2, phi)
-	parity := ((r.Hi >> (64 - beta)) & 1) != 0
-	isInt := ((uint64(r.Hi << beta)) | (r.Lo >> (64 - beta))) == 0
+	parity := ((r.hi >> (64 - beta)) & 1) != 0
+	isInt := ((uint64(r.hi << beta)) | (r.lo >> (64 - beta))) == 0
 	return parity, isInt
 }
 
@@ -284,7 +284,7 @@ func dboxParity32(mant2 uint32, phi uint64, beta int) (bool, bool) {
 
 // dboxDelta64 returns δ^(i) from the precomputed value of φ̃k for float64.
 func dboxDelta64(phi uint128, beta int) uint32 {
-	return uint32(phi.Hi >> (64 - 1 - beta))
+	return uint32(phi.hi >> (64 - 1 - beta))
 }
 
 // dboxDelta32 returns δ^(i) from the precomputed value of φ̃k for float32.
@@ -306,8 +306,8 @@ const (
 
 // dboxRange64 returns the left and right float64 endpoints.
 func dboxRange64(phi uint128, beta int) (uint64, uint64) {
-	left := (phi.Hi - (phi.Hi >> (floatMantBits64 + 2))) >> (64 - floatMantBits64 - 1 - beta)
-	right := (phi.Hi + (phi.Hi >> (floatMantBits64 + 1))) >> (64 - floatMantBits64 - 1 - beta)
+	left := (phi.hi - (phi.hi >> (floatMantBits64 + 2))) >> (64 - floatMantBits64 - 1 - beta)
+	right := (phi.hi + (phi.hi >> (floatMantBits64 + 1))) >> (64 - floatMantBits64 - 1 - beta)
 	return left, right
 }
 
@@ -320,7 +320,7 @@ func dboxRange32(phi uint64, beta int) (uint32, uint32) {
 
 // dboxRoundUp64 computes the round up of y (i.e., y^(ru)).
 func dboxRoundUp64(phi uint128, beta int) uint64 {
-	return (phi.Hi>>(128/2-floatMantBits64-2-beta) + 1) / 2
+	return (phi.hi>>(128/2-floatMantBits64-2-beta) + 1) / 2
 }
 
 // dboxRoundUp32 computes the round up of y (i.e., y^(ru)).
@@ -333,7 +333,7 @@ func dboxPow64(k, e int) phiBeta {
 	powr := intPow10(k)
 	phi, e1 := powr.mant, powr.exp
 	if k < 0 || k > 55 {
-		phi.Lo++
+		phi.lo++
 	}
 	beta := e + e1 - 1
 	return phiBeta{phi, beta}
@@ -344,8 +344,8 @@ func dboxPow32(k, e int) (uint64, int) {
 	powr := intPow10(k)
 	m, e1 := powr.mant, powr.exp
 	if k < 0 || k > 27 {
-		m.Hi++
+		m.hi++
 	}
 	exp := e + e1 - 1
-	return m.Hi, exp
+	return m.hi, exp
 }

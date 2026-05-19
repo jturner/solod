@@ -85,7 +85,7 @@ func fixedFtoa(d *decimalSlice, mant uint64, exp, digits, prec int, fmt byte) {
 		// come out exactly right.
 		// (This is the same trick compilers use for division by constants.
 		// See Hacker's Delight, 2nd ed., Chapter 10.)
-		pow.Lo++
+		pow.lo++
 	}
 	umulr := umul192(mant, pow)
 	dm, lo1, lo0 := umulr.hi, umulr.mid, umulr.lo

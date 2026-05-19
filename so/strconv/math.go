@@ -7,10 +7,11 @@ package strconv
 import "solod.dev/so/math/bits"
 
 // A uint128 is a 128-bit uint.
-// The fields are exported to make them visible to package strconv_test.
+//
+//so:extern so_uint128
 type uint128 struct {
-	Hi uint64
-	Lo uint64
+	hi uint64
+	lo uint64
 }
 
 type phiBeta struct {
@@ -32,8 +33,8 @@ type umul192Result struct {
 
 // umul192 returns the 192-bit product x*y in three uint64s.
 func umul192(x uint64, y uint128) umul192Result {
-	mid1, lo := bits.Mul64(x, y.Lo)
-	hi, mid2 := bits.Mul64(x, y.Hi)
+	mid1, lo := bits.Mul64(x, y.lo)
+	hi, mid2 := bits.Mul64(x, y.hi)
 	mid, carry := bits.Add64(mid1, mid2, 0)
 	return umul192Result{hi + carry, mid, lo}
 }

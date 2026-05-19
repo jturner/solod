@@ -43,11 +43,11 @@ func eiselLemire64(man uint64, exp10 int, neg bool) (float64, bool) {
 	retExp2 := uint64(exp2+63-float64Bias) - uint64(clz)
 
 	// Multiplication.
-	xHi, xLo := bits.Mul64(man, pow.Hi)
+	xHi, xLo := bits.Mul64(man, pow.hi)
 
 	// Wider Approximation.
 	if xHi&0x1FF == 0x1FF && xLo+man < man {
-		yHi, yLo := bits.Mul64(man, pow.Lo)
+		yHi, yLo := bits.Mul64(man, pow.lo)
 		mergedHi, mergedLo := xHi, xLo+yHi
 		if mergedLo < xLo {
 			mergedHi++
@@ -120,11 +120,11 @@ func eiselLemire32(man uint64, exp10 int, neg bool) (float32, bool) {
 	retExp2 := uint64(exp2+63-float32Bias) - uint64(clz)
 
 	// Multiplication.
-	xHi, xLo := bits.Mul64(man, pow.Hi)
+	xHi, xLo := bits.Mul64(man, pow.hi)
 
 	// Wider Approximation.
 	if xHi&0x3FFFFFFFFF == 0x3FFFFFFFFF && xLo+man < man {
-		yHi, yLo := bits.Mul64(man, pow.Lo)
+		yHi, yLo := bits.Mul64(man, pow.lo)
 		mergedHi, mergedLo := xHi, xLo+yHi
 		if mergedLo < xLo {
 			mergedHi++
