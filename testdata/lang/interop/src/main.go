@@ -33,6 +33,9 @@ func printf(format string, args ...any) int
 //so:extern
 func write_acc(acc *Account, format string, args ...any)
 
+//so:extern unsigned char
+type uchar uint8
+
 func main() {
 	{
 		// Passing values between So and C and vice versa.
@@ -92,5 +95,13 @@ func main() {
 		var s sub.Stream
 		s.Write = sub.Discard
 		s.Write("Hello, %s!", "world")
+	}
+	{
+		// Multi-word type names.
+		var b byte = 'a'
+		var ch uchar = uchar(b)
+		if byte(ch) != b {
+			panic("unexpected uchar value")
+		}
 	}
 }

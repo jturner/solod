@@ -55,4 +55,16 @@ func main() {
 		p := (*c.ConstChar)(c.CString(s))
 		_ = p
 	}
+	{
+		// Numeric C types.
+		var i c.Int = 42
+		var u c.UInt = c.UInt(i)
+		var l c.Long = c.Long(u)
+		var ul c.ULong = c.ULong(l)
+		var ll c.LongLong = c.LongLong(ul)
+		var ull c.ULongLong = c.ULongLong(ll)
+		if ull != 42 {
+			panic("ull != 42")
+		}
+	}
 }

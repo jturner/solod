@@ -1,7 +1,5 @@
 #include "so/builtin/builtin.h"
 
-#define so_const_char const char
-
 #define c_Alignof(T) ((so_int)alignof(T))
 
 #define c_Alloca(T, n) ((T*)so_alloca(sizeof(T) * (size_t)(n)))

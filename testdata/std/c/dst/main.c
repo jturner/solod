@@ -5,8 +5,8 @@
 int main(void) {
     {
         // Return `const char*` from C.
-        so_const_char* cstr = get_cstring("Hello, C!");
-        so_String str = c_String(so_const_char, (cstr));
+        const char* cstr = get_cstring("Hello, C!");
+        so_String str = c_String(const char, (cstr));
         if (so_string_ne(str, so_str("Hello, C!"))) {
             so_panic(so_cstr(so_string_add(so_str("unexpected string: "), str)));
         }
@@ -41,8 +41,20 @@ int main(void) {
     {
         // Go string to C string conversion.
         so_String s = so_str("hello");
-        so_const_char* p = (so_const_char*)(so_cstr(s));
+        const char* p = (const char*)(so_cstr(s));
         (void)p;
+    }
+    {
+        // Numeric C types.
+        int i = 42;
+        unsigned int u = (unsigned int)(i);
+        long l = (long)(u);
+        unsigned long ul = (unsigned long)(l);
+        long long ll = (long long)(ul);
+        unsigned long long ull = (unsigned long long)(ll);
+        if (ull != 42) {
+            so_panic("ull != 42");
+        }
     }
     return 0;
 }

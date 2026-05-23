@@ -56,12 +56,15 @@ func parseExtern(doc *ast.CommentGroup) (bool, externInfo) {
 			continue
 		}
 		var info externInfo
-		for tok := range strings.FieldsSeq(rest) {
-			if tok == "nodecay" {
-				info.nodecay = true
-			} else {
-				info.name = tok
-			}
+		fields := strings.Fields(rest)
+		if len(fields) > 0 && fields[len(fields)-1] == "nodecay" {
+			// nodecay can only be the last field.
+			info.nodecay = true
+			fields = fields[:len(fields)-1]
+		}
+		if len(fields) > 0 {
+			// Use the remaining fields as the C name override.
+			info.name = strings.Join(fields, " ")
 		}
 		return true, info
 	}

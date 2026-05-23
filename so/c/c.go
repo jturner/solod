@@ -15,8 +15,58 @@ type Char byte
 
 // ConstChar represents a C char type with a const modifier.
 //
-//so:extern so_const_char
+//so:extern const char
 type ConstChar byte
+
+// SChar represents a C signed char type.
+//
+//so:extern signed char
+type SChar int8
+
+// UChar represents a C unsigned char type.
+//
+//so:extern unsigned char
+type UChar uint8
+
+// Short represents a C short type.
+//
+//so:extern short
+type Short int16
+
+// UShort represents a C unsigned short type.
+//
+//so:extern unsigned short
+type UShort uint16
+
+// Int represents a C int type.
+//
+//so:extern int
+type Int int32
+
+// UInt represents a C unsigned int type.
+//
+//so:extern unsigned int
+type UInt uint32
+
+// Long represents a C long type.
+//
+//so:extern long
+type Long int64
+
+// ULong represents a C unsigned long type.
+//
+//so:extern unsigned long
+type ULong uint64
+
+// LongLong represents a C long long type.
+//
+//so:extern long long
+type LongLong int64
+
+// ULongLong represents a C unsigned long long type.
+//
+//so:extern unsigned long long
+type ULongLong uint64
 
 // Alignof returns the alignment of type T in bytes.
 //
@@ -136,7 +186,7 @@ func Slice[T any](ptr *T, len int, cap int) []T {
 //	(so_String){s, strlen(s)}
 //
 //so:extern
-func String[T Char|ConstChar](ptr *T) string { _ = ptr; return "" }
+func String[T Char | ConstChar](ptr *T) string { _ = ptr; return "" }
 
 // Val emits a typed C expression.
 //

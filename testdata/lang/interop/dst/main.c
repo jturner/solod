@@ -52,5 +52,13 @@ int main(void) {
         s.Write = Discard;
         s.Write("Hello, %s!", "world");
     }
+    {
+        // Multi-word type names.
+        so_byte b = 'a';
+        unsigned char ch = (unsigned char)(b);
+        if ((so_byte)(ch) != b) {
+            so_panic("unexpected uchar value");
+        }
+    }
     return 0;
 }
