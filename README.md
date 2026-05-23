@@ -218,15 +218,20 @@ So can also target [freestanding](doc/freestanding.md) environments.
 ✓ fmt      ✓ os      ✓ slog      ✓ unicode
 ```
 
-⏳ I'm currently gathering feedback and defining the scope for the [v0.2 release](doc/changelog.md).
+⏳ Currently working on the [v0.2 release](doc/changelog.md):
 
-⬜ Networking (v0.2).
+- ✅ 32-bit target support.
+- ✅ WebAssembly support (WASI).
+- ✅ Freestanding mode.
+- ⏳ Networking dependencies.
 
-⬜ Concurrency (v0.3).
+Future plans:
 
-🤔 32-bit targets.
-
-🤔 Full Windows support.
+- Networking.
+- Concurrency.
+- JSON.
+- HTTP.
+- SQL.
 
 ## Contributing
 

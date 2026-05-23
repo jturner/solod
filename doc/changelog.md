@@ -20,3 +20,15 @@ Implement `error` as a regular interface (it was special-cased before).<br>
 
 ⚠️ Auto-generate result types for `(T, error)` multi-return values where `T` is a custom struct type. This is a breaking change: previously, you had to manually define a `T{Result}` type for any such `T`.<br>
 [745b174](https://github.com/solod-dev/solod/commit/745b174e11c08bee91cdaeaf8a8b2aa083863b61)
+
+Numeric C types in the `so/c` package for better interop.<br>
+[5914a75](https://github.com/solod-dev/solod/commit/5914a7591bc44335b4556893a3f848e1a6c9cc8c)
+
+Type aliases.<br>
+[deeccb9](https://github.com/solod-dev/solod/commit/deeccb98d22f342e6bdceb9d7827e9d464af9603)
+
+Support for third-party packages (`go install` or vendoring) and multi-module projects.<br>
+[bba8265](https://github.com/solod-dev/solod/commit/bba8265883b10814803510518693b224b70d2d98)
+
+`net/netip` package.<br>
+[5f87292](https://github.com/solod-dev/solod/commit/5f87292ac5b334cd1080a20ca75cc5a1c2c3ea59)
