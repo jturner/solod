@@ -65,7 +65,11 @@ func (g *Generator) emitInterfaceLit(w io.Writer, ifaceType types.Type, expr ast
 // emitTypeAssertion emits a comma-ok type assertion (e.g. _, ok := s.(Rect)).
 // Uses function pointer comparison to identify the concrete type.
 func (g *Generator) emitTypeAssertion(w io.Writer, stmt *ast.AssignStmt, ta *ast.TypeAssertExpr) {
-	ifaceType := types.Unalias(g.types.TypeOf(ta.X)).(*types.Named)
+	sourceType := g.types.TypeOf(ta.X)
+	if iface, ok := sourceType.Underlying().(*types.Interface); ok && iface.Empty() {
+		g.fail(ta, "comma-ok type assertion on any is not supported")
+	}
+	ifaceType := types.Unalias(sourceType).(*types.Named)
 	iface := ifaceType.Underlying().(*types.Interface)
 	firstMethod := iface.Method(0).Name()
 
@@ -91,10 +95,17 @@ func (g *Generator) emitTypeAssertion(w io.Writer, stmt *ast.AssignStmt, ta *ast
 func (g *Generator) emitTypeAssertExpr(w io.Writer, n *ast.TypeAssertExpr) {
 	sourceType := g.types.TypeOf(n.X)
 	if iface, ok := sourceType.Underlying().(*types.Interface); ok && iface.Empty() {
-		// Empty interface, emit a simple cast: (Type)expr
-		cType := g.mapType(n, g.types.TypeOf(n.Type))
-		fmt.Fprintf(w, "(%s)", cType)
-		g.emitExpr(w, n.X)
+		targetType := g.types.TypeOf(n.Type)
+		cType := g.mapType(n, targetType)
+		if _, isPtr := targetType.Underlying().(*types.Pointer); isPtr {
+			// Pointer assertion: any.(*Type) -> (Type*)expr
+			fmt.Fprintf(w, "(%s)", cType)
+			g.emitExpr(w, n.X)
+		} else {
+			// Value assertion: any.(Type) -> *(Type*)expr
+			fmt.Fprintf(w, "*(%s*)", cType)
+			g.emitExpr(w, n.X)
+		}
 		return
 	}
 
@@ -110,12 +121,12 @@ func (g *Generator) emitTypeAssertExpr(w io.Writer, n *ast.TypeAssertExpr) {
 	concreteNamed := types.Unalias(targetType).(*types.Named)
 	cConcrete := g.mapType(n, concreteNamed)
 	if isPtr {
-		// Pointer assertion: ival.(*Type) → (Type*)ival.self
+		// Pointer assertion: ival.(*Type) -> (Type*)ival.self
 		fmt.Fprintf(w, "(%s*)", cConcrete)
 		g.emitExpr(w, n.X)
 		fmt.Fprint(w, ".self")
 	} else {
-		// Value assertion: ival.(Type) → *((Type*)ival.self)
+		// Value assertion: ival.(Type) -> *((Type*)ival.self)
 		fmt.Fprintf(w, "*((%s*)", cConcrete)
 		g.emitExpr(w, n.X)
 		fmt.Fprint(w, ".self)")

@@ -1,5 +1,7 @@
 package main
 
+type number int
+
 type point struct {
 	x, y int
 }
@@ -88,18 +90,49 @@ func main() {
 		acceptPoint(any(p).(*point))
 	}
 	{
-		// Any casts.
-		n := 42
-		var a any = n
-		b := a.(*byte)
-		if *b != 42 {
-			panic("want *b == 42")
+		// Any value casts.
+		var i int = 42
+		var a any = i
+		if a.(int) != 42 {
+			panic("want a.(int) == 42")
 		}
-		s1 := "hello"
-		a = &s1
-		s2 := a.(*string)
-		if s2 != &s1 {
-			panic("want s2 == s1")
+		var n number = 42
+		a = n
+		if a.(number) != 42 {
+			panic("want a.(number) == 42")
+		}
+		var s string = "hello"
+		a = s
+		if a.(string) != "hello" {
+			panic("want a.(string) == \"hello\"")
+		}
+		var p point = point{1, 2}
+		a = p
+		if a.(point) != (point{1, 2}) {
+			panic("want a.(point) == point{1, 2}")
+		}
+	}
+	{
+		// Any pointer casts.
+		var i int = 42
+		var a any = &i
+		if a.(*int) != &i {
+			panic("want a.(*int) == &i")
+		}
+		var n number = 42
+		a = &n
+		if a.(*number) != &n {
+			panic("want a.(*number) == &n")
+		}
+		var s string = "hello"
+		a = &s
+		if a.(*string) != &s {
+			panic("want a.(*string) == &s")
+		}
+		var p1 point = point{1, 2}
+		a = &p1
+		if a.(*point) != &p1 {
+			panic("want a.(*point) == &p1")
 		}
 	}
 }

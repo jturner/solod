@@ -3,6 +3,7 @@
 // -- Types --
 
 typedef struct point point;
+typedef so_int number;
 
 typedef struct point {
     so_int x;
@@ -100,18 +101,49 @@ int main(void) {
         acceptPoint((point*)p);
     }
     {
-        // Any casts.
-        so_int n = 42;
-        void* a = &n;
-        so_byte* b = (so_byte*)a;
-        if (*b != 42) {
-            so_panic("want *b == 42");
+        // Any value casts.
+        so_int i = 42;
+        void* a = &i;
+        if (*(so_int*)a != 42) {
+            so_panic("want a.(int) == 42");
         }
-        so_String s1 = so_str("hello");
-        a = &s1;
-        so_String* s2 = (so_String*)a;
-        if (s2 != &s1) {
-            so_panic("want s2 == s1");
+        number n = 42;
+        a = &n;
+        if (*(number*)a != 42) {
+            so_panic("want a.(number) == 42");
+        }
+        so_String s = so_str("hello");
+        a = &s;
+        if (so_string_ne(*(so_String*)a, so_str("hello"))) {
+            so_panic("want a.(string) == \"hello\"");
+        }
+        point p = (point){1, 2};
+        a = &p;
+        if (so_mem_ne(&*(point*)a, &((point){1, 2}), sizeof(point))) {
+            so_panic("want a.(point) == point{1, 2}");
+        }
+    }
+    {
+        // Any pointer casts.
+        so_int i = 42;
+        void* a = &i;
+        if ((so_int*)a != &i) {
+            so_panic("want a.(*int) == &i");
+        }
+        number n = 42;
+        a = &n;
+        if ((number*)a != &n) {
+            so_panic("want a.(*number) == &n");
+        }
+        so_String s = so_str("hello");
+        a = &s;
+        if ((so_String*)a != &s) {
+            so_panic("want a.(*string) == &s");
+        }
+        point p1 = (point){1, 2};
+        a = &p1;
+        if ((point*)a != &p1) {
+            so_panic("want a.(*point) == &p1");
         }
     }
     return 0;
