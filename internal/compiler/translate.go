@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"runtime/debug"
 	"strings"
 
 	"golang.org/x/tools/go/packages"
@@ -23,20 +22,9 @@ func Translate(srcDir string, outDir string) error {
 		return fmt.Errorf("no packages found")
 	}
 
-	entry := pkgs[0]
-
-	var entryModulePath string
-	if entry.Module != nil {
-		entryModulePath = entry.Module.Path
-	}
-
-	var soModulePath string
-	if info, ok := debug.ReadBuildInfo(); ok {
-		soModulePath = info.Main.Path
-	}
-
 	// Walk import graph and collect transpilable packages in topological order
-	ordered := topoSort(entry, entryModulePath, soModulePath)
+	entry := pkgs[0]
+	ordered := topoSort(entry)
 
 	// Translate each package
 	for _, pkg := range ordered {
@@ -77,8 +65,8 @@ func loadPackages(dir string) ([]*packages.Package, error) {
 }
 
 // topoSort walks the import graph from entry and returns transpilable packages
-// (module-internal + So stdlib) in topological order (dependencies before dependents).
-func topoSort(entry *packages.Package, entryModulePath, soModulePath string) []*packages.Package {
+// in topological order (dependencies before dependents).
+func topoSort(entry *packages.Package) []*packages.Package {
 	var ordered []*packages.Package
 	visited := make(map[string]bool)
 
@@ -91,7 +79,7 @@ func topoSort(entry *packages.Package, entryModulePath, soModulePath string) []*
 
 		// Visit dependencies first (post-order)
 		for _, dep := range pkg.Imports {
-			if shouldTranspile(dep, entryModulePath, soModulePath) {
+			if shouldTranspile(dep) {
 				walk(dep)
 			}
 		}
@@ -113,10 +101,8 @@ func packageOutDir(pkg, entry *packages.Package, outDir string) string {
 }
 
 // shouldTranspile returns true if a package should be transpiled to C.
-// This includes packages from the entry module and So stdlib packages.
-func shouldTranspile(pkg *packages.Package, entryModulePath, soModulePath string) bool {
-	if pkg.Module == nil {
-		return false
-	}
-	return pkg.Module.Path == entryModulePath || pkg.Module.Path == soModulePath
+// Go standard library packages (Module == nil) are skipped;
+// everything else (user code, So stdlib, third-party So packages) is transpiled.
+func shouldTranspile(pkg *packages.Package) bool {
+	return pkg.Module != nil
 }
