@@ -111,6 +111,8 @@ func (g *Generator) emitBranchStmt(w io.Writer, stmt *ast.BranchStmt) {
 		// Labeled break is translated to goto because C has no "break label".
 		// ("break label" -> "goto label_end").
 		fmt.Fprintf(w, "%sgoto %s_end;\n", g.indent(), stmt.Label.Name)
+	} else if stmt.Label != nil && stmt.Tok == token.CONTINUE {
+		g.fail(stmt, "labeled continue is not supported")
 	} else if stmt.Label != nil {
 		// Regular labeled goto, emit as-is.
 		fmt.Fprintf(w, "%s%s %s;\n", g.indent(), stmt.Tok, stmt.Label.Name)
