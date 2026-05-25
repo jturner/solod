@@ -1,4 +1,5 @@
-CFLAGS ?= -O1 -g -std=gnu11 -Wall -Wextra -Werror -Wno-shadow -Wno-unused-label -fsanitize=address -fsanitize=undefined -fstack-protector-all -fno-omit-frame-pointer
+CFLAGS_CORE = -O1 -g -std=gnu11 -Wall -Wextra -Werror -Wno-shadow -Wno-unused-label
+CFLAGS ?= $(CFLAGS_CORE) -fsanitize=address -fsanitize=undefined -fstack-protector-all -fno-omit-frame-pointer
 LDLIBS ?= -lm
 
 CLANG = clang
@@ -25,21 +26,21 @@ else ifeq ($(compiler), docker)
     RUN_CMD = $(GCC_DOCKER) ./build/main
 else ifeq ($(compiler), bare)
 	CC = $(ZIG)
-	CFLAGS = -O1 -g -std=gnu11 -Wall -Wextra -Werror -Wno-shadow --target=wasm32-freestanding -nostdlib -Wl,--no-entry -Wl,--export=main -DSO_HEAP_SIZE=65536
+	CFLAGS = $(CFLAGS_CORE) --target=wasm32-freestanding -nostdlib -Wl,--no-entry -Wl,--export=main -DSO_HEAP_SIZE=65536
 	LDLIBS =
 	OUT_NAME = main.wasm
 	RUN_CMD = wasmtime --invoke main ./build/main.wasm 0 0
 else ifeq ($(compiler), riscv64)
 	CC = $(RISCV64) gcc
-	CFLAGS = -O1 -g -std=gnu11 -Wall -Wextra -Werror -Wno-shadow
+	CFLAGS = $(CFLAGS_CORE)
 	RUN_CMD = $(RISCV64) ./build/main
 else ifeq ($(compiler), i386)
 	CC = $(I386) gcc
-	CFLAGS = -O1 -g -std=gnu11 -Wall -Wextra -Werror -Wno-shadow
+	CFLAGS = $(CFLAGS_CORE)
 	RUN_CMD = $(I386) ./build/main
 else ifeq ($(compiler), wasm)
 	CC = $(EMCC)
-	CFLAGS = -O1 -g -std=gnu11 -Wall -Wextra -Werror -Wno-shadow -sSTANDALONE_WASM
+	CFLAGS = $(CFLAGS_CORE) -sSTANDALONE_WASM
 	OUT_NAME = main.wasm
 	RUN_CMD = wasmtime ./build/main.wasm
 endif
@@ -87,7 +88,7 @@ run-cases-bare:
 	@make run-cases-by compiler=bare pattern="testdata/lang/*/ std/bufio std/bytealg std/bytes std/c std/cmp std/encoding-binary std/io std/maps std/math-bits std/math-rand std/mem std/path std/runtime std/slices std/strconv std/strings std/stringslite std/unicode std/unicode-utf8 std/unsafe"
 
 run-cases-windows:
-	@make run-cases-by CFLAGS="-g -std=gnu11 -Wall -Wextra -Werror -Wno-shadow -lm" pattern="testdata/lang/*/"
+	@make run-cases-by CFLAGS="$(CFLAGS_CORE)" pattern="testdata/lang/*/"
 
 run-cases-by:
 	@failed=0; \
