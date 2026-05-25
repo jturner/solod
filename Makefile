@@ -1,4 +1,4 @@
-CFLAGS ?= -O1 -g -std=gnu11 -Wall -Wextra -Werror -Wno-shadow -fsanitize=address -fsanitize=undefined -fstack-protector-all -fno-omit-frame-pointer
+CFLAGS ?= -O1 -g -std=gnu11 -Wall -Wextra -Werror -Wno-shadow -Wno-unused-label -fsanitize=address -fsanitize=undefined -fstack-protector-all -fno-omit-frame-pointer
 LDLIBS ?= -lm
 
 CLANG = clang

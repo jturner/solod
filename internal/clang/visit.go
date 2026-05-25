@@ -496,16 +496,19 @@ func (g *Generator) emitIncDecStmt(w io.Writer, stmt *ast.IncDecStmt) {
 
 // emitLabeledStmt emits a label followed by its statement.
 func (g *Generator) emitLabeledStmt(w io.Writer, stmt *ast.LabeledStmt) {
+	name := stmt.Label.Name
 	switch stmt.Stmt.(type) {
 	case *ast.ForStmt, *ast.RangeStmt, *ast.SwitchStmt:
-		// For loops and switches, only emit the end label
-		// (for "break label" -> "goto label_end").
+		// A label on a loop/switch may be a goto target (jump before)
+		// and/or a break target (jump after). Emit both labels and rely
+		// on -Wno-unused-label in CFLAGS.
+		fmt.Fprintf(w, "%s%s:;\n", g.indent(), name)
 		g.walkAST(w, stmt.Stmt)
-		fmt.Fprintf(w, "%s%s_end:;\n", g.indent(), stmt.Label.Name)
+		fmt.Fprintf(w, "%s%s_end:;\n", g.indent(), name)
 	default:
 		// For other labels (regular goto targets),
 		// emit the label before the statement.
-		fmt.Fprintf(w, "%s%s:;\n", g.indent(), stmt.Label.Name)
+		fmt.Fprintf(w, "%s%s:;\n", g.indent(), name)
 		g.walkAST(w, stmt.Stmt)
 	}
 }

@@ -20,6 +20,20 @@ fallback:
 	}
 }
 
+func labeledLoop() {
+	x := 0
+outer:
+	for range 5 {
+		x++
+	}
+	if x < 10 {
+		goto outer
+	}
+	if x != 10 {
+		panic("x != 10")
+	}
+}
+
 func labeledBreak() {
 	sum := 0
 outer:
@@ -38,5 +52,6 @@ outer:
 
 func main() {
 	regularGoto()
+	labeledLoop()
 	labeledBreak()
 }
