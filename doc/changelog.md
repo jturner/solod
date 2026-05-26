@@ -32,3 +32,12 @@ Support for third-party packages (`go install` or vendoring) and multi-module pr
 
 `net/netip` package.<br>
 [5f87292](https://github.com/solod-dev/solod/commit/5f87292ac5b334cd1080a20ca75cc5a1c2c3ea59)
+
+`mem/Arena.Free` reclaims the last allocation if the pointer matches.<br>
+[f9adba6](https://github.com/solod-dev/solod/commit/f9adba6baca67b2ed332e3aaaf1e59b44113d1db)
+
+Report So source location (file and line number) instead of C source location when panicking (`track-source` flag, off by default).<br>
+[fb78b7a](https://github.com/solod-dev/solod/commit/fb78b7af20525055e320e5f01cb5bb8198ab18ff)
+
+Check for nil pointer dereference on struct pointer field access and interface method calls (`check-nil` flag, off by default).<br>
+[426961e](https://github.com/solod-dev/solod/commit/426961e0ef463cc2390e6d1a930555f2db581f7e)
