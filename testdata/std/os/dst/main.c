@@ -39,12 +39,9 @@ static void basicTest(void) {
         so_Slice b = _res1.val;
         err = _res1.err;
         if (err.self != NULL) {
-            os_Remove(name);
             so_panic("ReadFile failed");
         }
         if (so_string_ne(so_bytes_string(b), so_bytes_string(data))) {
-            mem_FreeSlice(so_byte, ((mem_Allocator){0}), (b));
-            os_Remove(name);
             so_panic("ReadFile: wrong data");
         }
         mem_FreeSlice(so_byte, ((mem_Allocator){0}), (b));
@@ -64,17 +61,14 @@ static void basicTest(void) {
         so_int n = _res3.val;
         err = _res3.err;
         if (err.self != NULL) {
-            os_Remove(name);
             so_panic("Write failed");
         }
         if (n != 6) {
-            os_Remove(name);
             so_panic("Write: wrong count");
         }
         // Close.
         err = os_File_Close(&f);
         if (err.self != NULL) {
-            os_Remove(name);
             so_panic("Close failed");
         }
         os_Remove(name);
@@ -92,7 +86,6 @@ static void basicTest(void) {
         os_File f = _res4.val;
         err = _res4.err;
         if (err.self != NULL) {
-            os_Remove(name);
             so_panic("Open failed");
         }
         // Read.
@@ -101,21 +94,17 @@ static void basicTest(void) {
         so_int n = _res5.val;
         err = _res5.err;
         if (err.self != NULL) {
-            os_Remove(name);
             so_panic("Read failed");
         }
         if (n != 6) {
-            os_Remove(name);
             so_panic("Read: wrong count");
         }
         if (so_string_ne(so_bytes_string(so_slice(so_byte, buf, 0, n)), so_str("abcdef"))) {
-            os_Remove(name);
             so_panic("Read: wrong data");
         }
         // Close.
         err = os_File_Close(&f);
         if (err.self != NULL) {
-            os_Remove(name);
             so_panic("Close failed");
         }
         os_Remove(name);
@@ -133,11 +122,9 @@ static void basicTest(void) {
         so_int n = _res7.val;
         err = _res7.err;
         if (err.self != NULL) {
-            os_Remove(name);
             so_panic("WriteString failed");
         }
         if (n != 5) {
-            os_Remove(name);
             so_panic("WriteString: wrong count");
         }
         os_File_Close(&f);
@@ -145,12 +132,9 @@ static void basicTest(void) {
         so_Slice b = _res8.val;
         err = _res8.err;
         if (err.self != NULL) {
-            os_Remove(name);
             so_panic("ReadFile failed");
         }
         if (so_string_ne(so_bytes_string(b), so_str("hello"))) {
-            mem_FreeSlice(so_byte, ((mem_Allocator){0}), (b));
-            os_Remove(name);
             so_panic("WriteString: wrong data");
         }
         mem_FreeSlice(so_byte, ((mem_Allocator){0}), (b));
@@ -194,54 +178,25 @@ static void dirTest(void) {
         so_Slice entries = _res1.val;
         so_Error err = _res1.err;
         if (err.self != NULL) {
-            os_Remove(so_string_add(dirName, so_str("/subdir")));
-            os_Remove(so_string_add(dirName, so_str("/bbb.txt")));
-            os_Remove(so_string_add(dirName, so_str("/aaa.txt")));
-            os_Remove(dirName);
             so_panic("ReadDir failed");
         }
         if (so_len(entries) != 3) {
             fmt_Printf("ReadDir: expected 3 entries, got %d\n", so_len(entries));
-            os_FreeDirEntry((mem_Allocator){0}, entries);
-            os_Remove(so_string_add(dirName, so_str("/subdir")));
-            os_Remove(so_string_add(dirName, so_str("/bbb.txt")));
-            os_Remove(so_string_add(dirName, so_str("/aaa.txt")));
-            os_Remove(dirName);
             so_panic("ReadDir: wrong count");
         }
         os_DirEntry entry = so_at(os_DirEntry, entries, 0);
         if (so_string_ne(entry.Name, so_str("aaa.txt")) || entry.IsDir) {
-            os_FreeDirEntry((mem_Allocator){0}, entries);
-            os_Remove(so_string_add(dirName, so_str("/subdir")));
-            os_Remove(so_string_add(dirName, so_str("/bbb.txt")));
-            os_Remove(so_string_add(dirName, so_str("/aaa.txt")));
-            os_Remove(dirName);
             so_panic("ReadDir: want 1st = aaa.txt");
         }
         entry = so_at(os_DirEntry, entries, 1);
         if (so_string_ne(entry.Name, so_str("bbb.txt")) || entry.IsDir) {
-            os_FreeDirEntry((mem_Allocator){0}, entries);
-            os_Remove(so_string_add(dirName, so_str("/subdir")));
-            os_Remove(so_string_add(dirName, so_str("/bbb.txt")));
-            os_Remove(so_string_add(dirName, so_str("/aaa.txt")));
-            os_Remove(dirName);
             so_panic("ReadDir: want 2nd = bbb.txt");
         }
         entry = so_at(os_DirEntry, entries, 2);
         if (so_string_ne(entry.Name, so_str("subdir")) || !entry.IsDir) {
-            os_FreeDirEntry((mem_Allocator){0}, entries);
-            os_Remove(so_string_add(dirName, so_str("/subdir")));
-            os_Remove(so_string_add(dirName, so_str("/bbb.txt")));
-            os_Remove(so_string_add(dirName, so_str("/aaa.txt")));
-            os_Remove(dirName);
             so_panic("ReadDir: want 3rd = subdir");
         }
         if ((entry.Type & os_ModeDir) == 0) {
-            os_FreeDirEntry((mem_Allocator){0}, entries);
-            os_Remove(so_string_add(dirName, so_str("/subdir")));
-            os_Remove(so_string_add(dirName, so_str("/bbb.txt")));
-            os_Remove(so_string_add(dirName, so_str("/aaa.txt")));
-            os_Remove(dirName);
             so_panic("ReadDir: subdir should have ModeDir");
         }
         os_FreeDirEntry((mem_Allocator){0}, entries);
@@ -334,12 +289,9 @@ static void fileTest(void) {
         so_Slice b = _res2.val;
         err = _res2.err;
         if (err.self != NULL) {
-            os_Remove(name);
             so_panic("ReadFile after OpenFile failed");
         }
         if (so_string_ne(so_bytes_string(b), so_str("openfile"))) {
-            mem_FreeSlice(so_byte, ((mem_Allocator){0}), (b));
-            os_Remove(name);
             so_panic("OpenFile: wrong data");
         }
         mem_FreeSlice(so_byte, ((mem_Allocator){0}), (b));
@@ -353,7 +305,6 @@ static void fileTest(void) {
         os_File f = _res3.val;
         so_Error err = _res3.err;
         if (err.self != NULL) {
-            os_Remove(name);
             so_panic("OpenFile rdonly failed");
         }
         so_Slice buf = so_make_slice(so_byte, 16, 16);
@@ -361,11 +312,9 @@ static void fileTest(void) {
         so_int n = _res4.val;
         err = _res4.err;
         if (err.self != NULL) {
-            os_Remove(name);
             so_panic("Read from rdonly failed");
         }
         if (so_string_ne(so_bytes_string(so_slice(so_byte, buf, 0, n)), so_str("readonly"))) {
-            os_Remove(name);
             so_panic("OpenFile rdonly: wrong data");
         }
         os_File_Close(&f);
@@ -381,7 +330,6 @@ static void fileTest(void) {
             so_panic("Create failed");
         }
         if (so_string_ne(os_File_Name(&f), name)) {
-            os_Remove(name);
             so_panic("Name: wrong");
         }
         os_File_Close(&f);
@@ -395,21 +343,15 @@ static void fileTest(void) {
         so_String hard = so_str("test_hard_link.txt");
         so_Error err = os_Link(target, hard);
         if (err.self != NULL) {
-            os_Remove(target);
             so_panic("Link failed");
         }
         so_R_slice_err _res6 = os_ReadFile((mem_Allocator){0}, hard);
         so_Slice b = _res6.val;
         err = _res6.err;
         if (err.self != NULL) {
-            os_Remove(hard);
-            os_Remove(target);
             so_panic("ReadFile hard link failed");
         }
         if (so_string_ne(so_bytes_string(b), so_str("linked"))) {
-            mem_FreeSlice(so_byte, ((mem_Allocator){0}), (b));
-            os_Remove(hard);
-            os_Remove(target);
             so_panic("Hard link: wrong data");
         }
         mem_FreeSlice(so_byte, ((mem_Allocator){0}), (b));
@@ -423,7 +365,6 @@ static void fileTest(void) {
         so_String link = so_str("test_sym_link");
         so_Error err = os_Symlink(target, link);
         if (err.self != NULL) {
-            os_Remove(target);
             so_panic("Symlink failed");
         }
         so_byte rlBuf[4096] = {0};
@@ -431,13 +372,9 @@ static void fileTest(void) {
         so_String dest = _res7.val;
         err = _res7.err;
         if (err.self != NULL) {
-            os_Remove(link);
-            os_Remove(target);
             so_panic("Readlink failed");
         }
         if (so_string_ne(dest, target)) {
-            os_Remove(link);
-            os_Remove(target);
             so_panic("Readlink: wrong target");
         }
         os_Remove(link);
@@ -456,13 +393,11 @@ static void fileTest(void) {
         so_String origWd = _res8.val;
         err = _res8.err;
         if (err.self != NULL) {
-            os_Remove(dir);
             so_panic("Getwd failed");
         }
         // Change to new dir.
         err = os_Chdir(dir);
         if (err.self != NULL) {
-            os_Remove(dir);
             so_panic("Chdir failed");
         }
         // Verify we moved.
@@ -471,11 +406,9 @@ static void fileTest(void) {
         so_String newWd = _res9.val;
         err = _res9.err;
         if (err.self != NULL) {
-            os_Remove(dir);
             so_panic("Getwd after Chdir failed");
         }
         if (so_string_eq(newWd, origWd)) {
-            os_Remove(dir);
             so_panic("Chdir: dir did not change");
         }
         // Change back.
@@ -488,19 +421,15 @@ static void fileTest(void) {
         os_WriteFile(name, so_string_bytes(so_str("abcdef")), 0666);
         so_Error err = os_Truncate(name, 3);
         if (err.self != NULL) {
-            os_Remove(name);
             so_panic("Truncate failed");
         }
         so_R_slice_err _res10 = os_ReadFile((mem_Allocator){0}, name);
         so_Slice b = _res10.val;
         err = _res10.err;
         if (err.self != NULL) {
-            os_Remove(name);
             so_panic("ReadFile after Truncate failed");
         }
         if (so_string_ne(so_bytes_string(b), so_str("abc"))) {
-            mem_FreeSlice(so_byte, ((mem_Allocator){0}), (b));
-            os_Remove(name);
             so_panic("Truncate: wrong data");
         }
         mem_FreeSlice(so_byte, ((mem_Allocator){0}), (b));
@@ -514,7 +443,6 @@ static void fileTest(void) {
         os_File f = _res11.val;
         so_Error err = _res11.err;
         if (err.self != NULL) {
-            os_Remove(name);
             so_panic("OpenFile append failed");
         }
         os_File_Write(&f, so_string_bytes(so_str(" world")));
@@ -523,12 +451,9 @@ static void fileTest(void) {
         so_Slice b = _res12.val;
         err = _res12.err;
         if (err.self != NULL) {
-            os_Remove(name);
             so_panic("ReadFile after append failed");
         }
         if (so_string_ne(so_bytes_string(b), so_str("hello world"))) {
-            mem_FreeSlice(so_byte, ((mem_Allocator){0}), (b));
-            os_Remove(name);
             so_panic("Append: wrong data");
         }
         mem_FreeSlice(so_byte, ((mem_Allocator){0}), (b));
@@ -542,13 +467,11 @@ static void fileTest(void) {
         os_FileInfo fi = _res13.val;
         so_Error err = _res13.err;
         if (err.self != NULL) {
-            os_Remove(name);
             so_panic("Stat for Chtimes failed");
         }
         time_Time mt = os_FileInfo_ModTime(&fi);
         err = os_Chtimes(name, mt, mt);
         if (err.self != NULL) {
-            os_Remove(name);
             so_panic("Chtimes failed");
         }
         os_Remove(name);
@@ -559,7 +482,6 @@ static void fileTest(void) {
         os_WriteFile(name, so_string_bytes(so_str("chown")), 0666);
         so_Error err = os_Chown(name, -1, -1);
         if (err.self != NULL) {
-            os_Remove(name);
             so_panic("Chown failed");
         }
         os_Remove(name);
@@ -570,7 +492,6 @@ static void fileTest(void) {
         os_WriteFile(name, so_string_bytes(so_str("lchown")), 0666);
         so_Error err = os_Lchown(name, -1, -1);
         if (err.self != NULL) {
-            os_Remove(name);
             so_panic("Lchown failed");
         }
         os_Remove(name);
@@ -605,12 +526,9 @@ static void fileTest(void) {
         so_Slice b = _res15.val;
         err = _res15.err;
         if (err.self != NULL) {
-            os_Remove(newName);
             so_panic("ReadFile after Rename failed");
         }
         if (so_string_ne(so_bytes_string(b), so_str("renamed"))) {
-            mem_FreeSlice(so_byte, ((mem_Allocator){0}), (b));
-            os_Remove(newName);
             so_panic("Rename: wrong data");
         }
         mem_FreeSlice(so_byte, ((mem_Allocator){0}), (b));
@@ -622,7 +540,6 @@ static void fileTest(void) {
         os_Mkdir(name, 0755);
         so_Error err = os_Mkdir(name, 0755);
         if (err.self != os_ErrExist.self) {
-            os_Remove(name);
             so_panic("Mkdir existing: wrong error");
         }
         os_Remove(name);
@@ -756,11 +673,9 @@ static void seekTest(void) {
         int64_t pos = _res2.val;
         err = _res2.err;
         if (err.self != NULL) {
-            os_Remove(name);
             so_panic("Seek failed");
         }
         if (pos != 0) {
-            os_Remove(name);
             so_panic("Seek: wrong position");
         }
         so_Slice buf = so_make_slice(so_byte, 6, 6);
@@ -768,11 +683,9 @@ static void seekTest(void) {
         so_int n = _res3.val;
         err = _res3.err;
         if (err.self != NULL) {
-            os_Remove(name);
             so_panic("Read after Seek failed");
         }
         if (so_string_ne(so_bytes_string(so_slice(so_byte, buf, 0, n)), so_str("abcdef"))) {
-            os_Remove(name);
             so_panic("Seek: wrong data");
         }
         os_File_Close(&f);
@@ -789,7 +702,6 @@ static void seekTest(void) {
         os_File f = _res4.val;
         err = _res4.err;
         if (err.self != NULL) {
-            os_Remove(name);
             so_panic("Open failed");
         }
         so_Slice buf = so_make_slice(so_byte, 5, 5);
@@ -797,15 +709,12 @@ static void seekTest(void) {
         so_int n = _res5.val;
         err = _res5.err;
         if (err.self != NULL) {
-            os_Remove(name);
             so_panic("ReadAt failed");
         }
         if (n != 5) {
-            os_Remove(name);
             so_panic("ReadAt: wrong count");
         }
         if (so_string_ne(so_bytes_string(so_slice(so_byte, buf, 0, n)), so_str("world"))) {
-            os_Remove(name);
             so_panic("ReadAt: wrong data");
         }
         os_File_Close(&f);
@@ -824,7 +733,6 @@ static void seekTest(void) {
         so_R_int_err _res7 = os_File_WriteAt(&f, so_string_bytes(so_str("WORLD")), 6);
         err = _res7.err;
         if (err.self != NULL) {
-            os_Remove(name);
             so_panic("WriteAt failed");
         }
         os_File_Close(&f);
@@ -832,12 +740,9 @@ static void seekTest(void) {
         so_Slice b = _res8.val;
         err = _res8.err;
         if (err.self != NULL) {
-            os_Remove(name);
             so_panic("ReadFile failed");
         }
         if (so_string_ne(so_bytes_string(b), so_str("hello WORLD"))) {
-            mem_FreeSlice(so_byte, ((mem_Allocator){0}), (b));
-            os_Remove(name);
             so_panic("WriteAt: wrong data");
         }
         mem_FreeSlice(so_byte, ((mem_Allocator){0}), (b));
@@ -856,23 +761,18 @@ static void statTest(void) {
         os_FileInfo fi = _res1.val;
         so_Error err = _res1.err;
         if (err.self != NULL) {
-            os_Remove(name);
             so_panic("Stat failed");
         }
         if (so_string_ne(os_FileInfo_Name(&fi), so_str("test_stat.txt"))) {
-            os_Remove(name);
             so_panic("Stat: wrong name");
         }
         if (os_FileInfo_Size(&fi) != 5) {
-            os_Remove(name);
             so_panic("Stat: wrong size");
         }
         if (!os_FileMode_IsRegular(os_FileInfo_Mode(&fi))) {
-            os_Remove(name);
             so_panic("Stat: not regular");
         }
         if (os_FileInfo_IsDir(&fi)) {
-            os_Remove(name);
             so_panic("Stat: should not be dir");
         }
         os_Remove(name);
@@ -885,19 +785,15 @@ static void statTest(void) {
         os_FileInfo fi = _res2.val;
         so_Error err = _res2.err;
         if (err.self != NULL) {
-            os_Remove(name);
             so_panic("Stat dir failed");
         }
         if (so_string_ne(os_FileInfo_Name(&fi), so_str("test_stat_dir"))) {
-            os_Remove(name);
             so_panic("Stat dir: wrong name");
         }
         if (!os_FileInfo_IsDir(&fi)) {
-            os_Remove(name);
             so_panic("Stat dir: should be dir");
         }
         if (os_FileMode_IsRegular(os_FileInfo_Mode(&fi))) {
-            os_Remove(name);
             so_panic("Stat dir: should not be regular");
         }
         os_Remove(name);
@@ -913,18 +809,12 @@ static void statTest(void) {
         os_FileInfo fi = _res3.val;
         so_Error err = _res3.err;
         if (err.self != NULL) {
-            os_Remove(link);
-            os_Remove(target);
             so_panic("Lstat failed");
         }
         if (so_string_ne(os_FileInfo_Name(&fi), so_str("test_lstat_link"))) {
-            os_Remove(link);
-            os_Remove(target);
             so_panic("Lstat: wrong name");
         }
         if ((os_FileInfo_Mode(&fi) & os_ModeSymlink) == 0) {
-            os_Remove(link);
-            os_Remove(target);
             so_panic("Lstat: should be symlink");
         }
         // Stat follows the link.
@@ -932,18 +822,12 @@ static void statTest(void) {
         os_FileInfo fi2 = _res4.val;
         err = _res4.err;
         if (err.self != NULL) {
-            os_Remove(link);
-            os_Remove(target);
             so_panic("Stat through link failed");
         }
         if (os_FileInfo_Size(&fi2) != 6) {
-            os_Remove(link);
-            os_Remove(target);
             so_panic("Stat through link: wrong size");
         }
         if ((os_FileInfo_Mode(&fi2) & os_ModeSymlink) != 0) {
-            os_Remove(link);
-            os_Remove(target);
             so_panic("Stat through link: should not be symlink");
         }
         os_Remove(link);
@@ -957,18 +841,15 @@ static void statTest(void) {
         os_FileInfo fi1 = _res5.val;
         so_Error err = _res5.err;
         if (err.self != NULL) {
-            os_Remove(name);
             so_panic("Stat 1 failed");
         }
         os_FileInfoResult _res6 = os_Stat(name);
         os_FileInfo fi2 = _res6.val;
         err = _res6.err;
         if (err.self != NULL) {
-            os_Remove(name);
             so_panic("Stat 2 failed");
         }
         if (!os_SameFile(fi1, fi2)) {
-            os_Remove(name);
             so_panic("SameFile: should be same");
         }
         so_String name2 = so_str("test_samefile2.txt");
@@ -977,13 +858,9 @@ static void statTest(void) {
         os_FileInfo fi3 = _res7.val;
         err = _res7.err;
         if (err.self != NULL) {
-            os_Remove(name2);
-            os_Remove(name);
             so_panic("Stat 3 failed");
         }
         if (os_SameFile(fi1, fi3)) {
-            os_Remove(name2);
-            os_Remove(name);
             so_panic("SameFile: should be different");
         }
         os_Remove(name2);
@@ -1003,18 +880,15 @@ static void statTest(void) {
         os_WriteFile(name, so_string_bytes(so_str("chmod")), 0666);
         so_Error err = os_Chmod(name, 0644);
         if (err.self != NULL) {
-            os_Remove(name);
             so_panic("Chmod failed");
         }
         os_FileInfoResult _res9 = os_Stat(name);
         os_FileInfo fi = _res9.val;
         err = _res9.err;
         if (err.self != NULL) {
-            os_Remove(name);
             so_panic("Stat after Chmod failed");
         }
         if (os_FileMode_Perm(os_FileInfo_Mode(&fi)) != 0644) {
-            os_Remove(name);
             so_panic("Chmod: wrong perm");
         }
         os_Remove(name);

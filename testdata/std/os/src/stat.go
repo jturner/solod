@@ -7,8 +7,6 @@ func statTest() {
 		// Stat on a regular file.
 		name := "test_stat.txt"
 		os.WriteFile(name, []byte("hello"), 0o666)
-		defer os.Remove(name)
-
 		fi, err := os.Stat(name)
 		if err != nil {
 			panic("Stat failed")
@@ -25,13 +23,12 @@ func statTest() {
 		if fi.IsDir() {
 			panic("Stat: should not be dir")
 		}
+		os.Remove(name)
 	}
 	{
 		// Stat on a directory.
 		name := "test_stat_dir"
 		os.Mkdir(name, 0o755)
-		defer os.Remove(name)
-
 		fi, err := os.Stat(name)
 		if err != nil {
 			panic("Stat dir failed")
@@ -45,15 +42,14 @@ func statTest() {
 		if fi.Mode().IsRegular() {
 			panic("Stat dir: should not be regular")
 		}
+		os.Remove(name)
 	}
 	{
 		// Lstat on a symlink.
 		target := "test_lstat_target.txt"
 		link := "test_lstat_link"
 		os.WriteFile(target, []byte("target"), 0o666)
-		defer os.Remove(target)
 		os.Symlink(target, link)
-		defer os.Remove(link)
 
 		// Lstat returns info about the link itself.
 		fi, err := os.Lstat(link)
@@ -78,12 +74,14 @@ func statTest() {
 		if fi2.Mode()&os.ModeSymlink != 0 {
 			panic("Stat through link: should not be symlink")
 		}
+
+		os.Remove(link)
+		os.Remove(target)
 	}
 	{
 		// SameFile.
 		name := "test_samefile.txt"
 		os.WriteFile(name, []byte("same"), 0o666)
-		defer os.Remove(name)
 
 		fi1, err := os.Stat(name)
 		if err != nil {
@@ -99,7 +97,6 @@ func statTest() {
 
 		name2 := "test_samefile2.txt"
 		os.WriteFile(name2, []byte("other"), 0o666)
-		defer os.Remove(name2)
 
 		fi3, err := os.Stat(name2)
 		if err != nil {
@@ -108,6 +105,9 @@ func statTest() {
 		if os.SameFile(fi1, fi3) {
 			panic("SameFile: should be different")
 		}
+
+		os.Remove(name2)
+		os.Remove(name)
 	}
 	{
 		// Stat on nonexistent file.
@@ -120,8 +120,6 @@ func statTest() {
 		// Chmod and permission check.
 		name := "test_chmod.txt"
 		os.WriteFile(name, []byte("chmod"), 0o666)
-		defer os.Remove(name)
-
 		err := os.Chmod(name, 0o644)
 		if err != nil {
 			panic("Chmod failed")
@@ -133,5 +131,6 @@ func statTest() {
 		if fi.Mode().Perm() != 0o644 {
 			panic("Chmod: wrong perm")
 		}
+		os.Remove(name)
 	}
 }

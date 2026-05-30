@@ -10,22 +10,17 @@ func dirTest() {
 		// ReadDir on a directory with known contents.
 		dirName := "test_readdir"
 		os.Mkdir(dirName, 0o755)
-		defer os.Remove(dirName)
 
 		os.WriteFile(dirName+"/aaa.txt", []byte("hello"), 0o666)
-		defer os.Remove(dirName + "/aaa.txt")
 
 		os.WriteFile(dirName+"/bbb.txt", []byte("world"), 0o666)
-		defer os.Remove(dirName + "/bbb.txt")
 
 		os.Mkdir(dirName+"/subdir", 0o755)
-		defer os.Remove(dirName + "/subdir")
 
 		entries, err := os.ReadDir(nil, dirName)
 		if err != nil {
 			panic("ReadDir failed")
 		}
-		defer os.FreeDirEntry(nil, entries)
 
 		if len(entries) != 3 {
 			fmt.Printf("ReadDir: expected 3 entries, got %d\n", len(entries))
@@ -47,6 +42,12 @@ func dirTest() {
 		if entry.Type&os.ModeDir == 0 {
 			panic("ReadDir: subdir should have ModeDir")
 		}
+
+		os.FreeDirEntry(nil, entries)
+		os.Remove(dirName + "/subdir")
+		os.Remove(dirName + "/bbb.txt")
+		os.Remove(dirName + "/aaa.txt")
+		os.Remove(dirName)
 	}
 	{
 		// ReadDir on nonexistent directory.

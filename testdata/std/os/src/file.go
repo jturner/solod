@@ -13,7 +13,6 @@ func fileTest() {
 		if err != nil {
 			panic("OpenFile create failed")
 		}
-		defer os.Remove(name)
 		f.Write([]byte("openfile"))
 		f.Close()
 
@@ -21,17 +20,16 @@ func fileTest() {
 		if err != nil {
 			panic("ReadFile after OpenFile failed")
 		}
-		defer mem.FreeSlice(nil, b)
 		if string(b) != "openfile" {
 			panic("OpenFile: wrong data")
 		}
+		mem.FreeSlice(nil, b)
+		os.Remove(name)
 	}
 	{
 		// OpenFile with O_RDONLY.
 		name := "test_openfile_rd.txt"
 		os.WriteFile(name, []byte("readonly"), 0o666)
-		defer os.Remove(name)
-
 		f, err := os.OpenFile(name, os.O_RDONLY, 0)
 		if err != nil {
 			panic("OpenFile rdonly failed")
@@ -45,6 +43,7 @@ func fileTest() {
 			panic("OpenFile rdonly: wrong data")
 		}
 		f.Close()
+		os.Remove(name)
 	}
 	{
 		// File.Name.
@@ -53,47 +52,43 @@ func fileTest() {
 		if err != nil {
 			panic("Create failed")
 		}
-		defer os.Remove(name)
 		if f.Name() != name {
 			panic("Name: wrong")
 		}
 		f.Close()
+		os.Remove(name)
 	}
 	{
 		// Link and Readlink (via symlink).
 		target := "test_link_target.txt"
 		os.WriteFile(target, []byte("linked"), 0o666)
-		defer os.Remove(target)
-
 		// Hard link.
 		hard := "test_hard_link.txt"
 		err := os.Link(target, hard)
 		if err != nil {
 			panic("Link failed")
 		}
-		defer os.Remove(hard)
 
 		b, err := os.ReadFile(nil, hard)
 		if err != nil {
 			panic("ReadFile hard link failed")
 		}
-		defer mem.FreeSlice(nil, b)
 		if string(b) != "linked" {
 			panic("Hard link: wrong data")
 		}
+		mem.FreeSlice(nil, b)
+		os.Remove(hard)
+		os.Remove(target)
 	}
 	{
 		// Symlink and Readlink.
 		target := "test_sym_target.txt"
 		os.WriteFile(target, []byte("sym"), 0o666)
-		defer os.Remove(target)
-
 		link := "test_sym_link"
 		err := os.Symlink(target, link)
 		if err != nil {
 			panic("Symlink failed")
 		}
-		defer os.Remove(link)
 
 		var rlBuf [os.MaxPathLen]byte
 		dest, err := os.Readlink(rlBuf[:], link)
@@ -103,6 +98,8 @@ func fileTest() {
 		if dest != target {
 			panic("Readlink: wrong target")
 		}
+		os.Remove(link)
+		os.Remove(target)
 	}
 	{
 		// Mkdir and Chdir.
@@ -111,8 +108,6 @@ func fileTest() {
 		if err != nil {
 			panic("Mkdir failed")
 		}
-		defer os.Remove(dir)
-
 		// Get current dir.
 		var wdBuf [os.MaxPathLen]byte
 		origWd, err := os.Getwd(wdBuf[:])
@@ -138,13 +133,12 @@ func fileTest() {
 
 		// Change back.
 		os.Chdir(origWd)
+		os.Remove(dir)
 	}
 	{
 		// Truncate.
 		name := "test_truncate.txt"
 		os.WriteFile(name, []byte("abcdef"), 0o666)
-		defer os.Remove(name)
-
 		err := os.Truncate(name, 3)
 		if err != nil {
 			panic("Truncate failed")
@@ -153,17 +147,16 @@ func fileTest() {
 		if err != nil {
 			panic("ReadFile after Truncate failed")
 		}
-		defer mem.FreeSlice(nil, b)
 		if string(b) != "abc" {
 			panic("Truncate: wrong data")
 		}
+		mem.FreeSlice(nil, b)
+		os.Remove(name)
 	}
 	{
 		// OpenFile with O_APPEND.
 		name := "test_append.txt"
 		os.WriteFile(name, []byte("hello"), 0o666)
-		defer os.Remove(name)
-
 		f, err := os.OpenFile(name, os.O_WRONLY|os.O_APPEND, 0)
 		if err != nil {
 			panic("OpenFile append failed")
@@ -175,17 +168,16 @@ func fileTest() {
 		if err != nil {
 			panic("ReadFile after append failed")
 		}
-		defer mem.FreeSlice(nil, b)
 		if string(b) != "hello world" {
 			panic("Append: wrong data")
 		}
+		mem.FreeSlice(nil, b)
+		os.Remove(name)
 	}
 	{
 		// Chtimes - just verify it doesn't error.
 		name := "test_chtimes.txt"
 		os.WriteFile(name, []byte("times"), 0o666)
-		defer os.Remove(name)
-
 		fi, err := os.Stat(name)
 		if err != nil {
 			panic("Stat for Chtimes failed")
@@ -195,28 +187,27 @@ func fileTest() {
 		if err != nil {
 			panic("Chtimes failed")
 		}
+		os.Remove(name)
 	}
 	{
 		// Chown with -1, -1 (no change) - should succeed.
 		name := "test_chown.txt"
 		os.WriteFile(name, []byte("chown"), 0o666)
-		defer os.Remove(name)
-
 		err := os.Chown(name, -1, -1)
 		if err != nil {
 			panic("Chown failed")
 		}
+		os.Remove(name)
 	}
 	{
 		// Lchown with -1, -1 (no change) - should succeed.
 		name := "test_lchown.txt"
 		os.WriteFile(name, []byte("lchown"), 0o666)
-		defer os.Remove(name)
-
 		err := os.Lchown(name, -1, -1)
 		if err != nil {
 			panic("Lchown failed")
 		}
+		os.Remove(name)
 	}
 	{
 		// Remove.
@@ -243,26 +234,25 @@ func fileTest() {
 		if err != nil {
 			panic("Rename failed")
 		}
-		defer os.Remove(newName)
 		b, err := os.ReadFile(nil, newName)
 		if err != nil {
 			panic("ReadFile after Rename failed")
 		}
-		defer mem.FreeSlice(nil, b)
 		if string(b) != "renamed" {
 			panic("Rename: wrong data")
 		}
+		mem.FreeSlice(nil, b)
+		os.Remove(newName)
 	}
 	{
 		// ErrExist - try to create dir that already exists.
 		name := "test_exist_dir"
 		os.Mkdir(name, 0o755)
-		defer os.Remove(name)
-
 		err := os.Mkdir(name, 0o755)
 		if err != os.ErrExist {
 			panic("Mkdir existing: wrong error")
 		}
+		os.Remove(name)
 	}
 	{
 		// ErrNotExist.

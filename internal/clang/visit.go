@@ -94,14 +94,8 @@ func (g *Generator) walkAST(w io.Writer, root ast.Node) {
 
 // emitBlockStmt emits a bare block statement (scoping block inside a function body).
 func (g *Generator) emitBlockStmt(w io.Writer, stmt *ast.BlockStmt) {
-	defers := g.state.defers // stash outer defers
-	g.state.defers = nil
 	fmt.Fprintf(w, "%s{\n", g.indent())
 	g.emitBlock(w, stmt)
-	g.state.indent++
-	g.emitDeferredCalls(w)
-	g.state.indent--
-	g.state.defers = defers // restore outer defers
 	fmt.Fprintf(w, "%s}\n", g.indent())
 }
 

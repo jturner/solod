@@ -8,7 +8,6 @@ static so_int funcWithReturn(void);
 static so_R_int_err funcReturnCall(void);
 static so_int funcReturnVar(void);
 static so_R_int_err funcCalc(void);
-static void blockScope(void);
 
 // -- Variables and constants --
 static so_int state = 0;
@@ -64,31 +63,6 @@ static so_R_int_err funcCalc(void) {
     return (so_R_int_err){.val = 42, .err = (so_Error){0}};
 }
 
-static void blockScope(void) {
-    {
-        xopen(&state);
-        if (state != 1) {
-            xclose(&state);
-            so_panic("unexpected state");
-        }
-        xclose(&state);
-    }
-    if (state != 0) {
-        so_panic("unexpected state");
-    }
-    {
-        xopen(&state);
-        if (state != 1) {
-            xclose(&state);
-            so_panic("unexpected state");
-        }
-        xclose(&state);
-    }
-    if (state != 0) {
-        so_panic("unexpected state");
-    }
-}
-
 int main(void) {
     funcScope();
     if (state != 0) {
@@ -105,10 +79,6 @@ int main(void) {
     if (funcReturnVar() != 1) {
         so_panic("unexpected return value");
     }
-    if (state != 0) {
-        so_panic("unexpected state");
-    }
-    blockScope();
     if (state != 0) {
         so_panic("unexpected state");
     }

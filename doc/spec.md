@@ -919,9 +919,7 @@ When `--track-source` is enabled, the reported source location may be off by a f
 
 ## Defer
 
-`defer` schedules a function or method call to run at the end of the enclosing scope.
-
-This scope can be either a function:
+`defer` schedules a function or method call to run at the end of the function:
 
 ```go
 func main() {
@@ -932,22 +930,9 @@ func main() {
 }
 ```
 
-Or a bare block:
+Deferred calls are emitted inline (before returns, panics, and function end) in LIFO order. The return value is evaluated before the deferred calls run.
 
-```go
-func example() {
-    {
-        xopen(&state)
-        defer xclose(&state)
-        // xclose(&state) runs here, at block end
-    }
-    // state is already closed here
-}
-```
-
-Deferred calls are emitted inline (before returns, panics, and scope end) in LIFO order. The return value is evaluated before the deferred calls run.
-
-Defer is not supported inside other scopes like `for` or `if`.
+Defer can only use variables declared at the top level of a function, not inside nested scopes like bare blocks, `for`, or `if`.
 
 ## C interop
 

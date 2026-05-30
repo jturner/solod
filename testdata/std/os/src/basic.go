@@ -14,16 +14,15 @@ func basicTest() {
 		if err != nil {
 			panic("WriteFile failed")
 		}
-		defer os.Remove(name)
-
 		b, err := os.ReadFile(nil, name)
 		if err != nil {
 			panic("ReadFile failed")
 		}
-		defer mem.FreeSlice(nil, b)
 		if string(b) != string(data) {
 			panic("ReadFile: wrong data")
 		}
+		mem.FreeSlice(nil, b)
+		os.Remove(name)
 	}
 	{
 		// Create, Write, Close.
@@ -32,8 +31,6 @@ func basicTest() {
 		if err != nil {
 			panic("Create failed")
 		}
-		defer os.Remove(name)
-
 		// Write.
 		n, err := f.Write([]byte("abcdef"))
 		if err != nil {
@@ -48,6 +45,7 @@ func basicTest() {
 		if err != nil {
 			panic("Close failed")
 		}
+		os.Remove(name)
 	}
 	{
 		// Open, Read, Close.
@@ -57,8 +55,6 @@ func basicTest() {
 		if err != nil {
 			panic("WriteFile failed")
 		}
-		defer os.Remove(name)
-
 		// Open.
 		f, err := os.Open(name)
 		if err != nil {
@@ -83,6 +79,7 @@ func basicTest() {
 		if err != nil {
 			panic("Close failed")
 		}
+		os.Remove(name)
 	}
 	{
 		// WriteString.
@@ -91,7 +88,6 @@ func basicTest() {
 		if err != nil {
 			panic("Create failed")
 		}
-		defer os.Remove(name)
 		n, err := f.WriteString("hello")
 		if err != nil {
 			panic("WriteString failed")
@@ -105,10 +101,11 @@ func basicTest() {
 		if err != nil {
 			panic("ReadFile failed")
 		}
-		defer mem.FreeSlice(nil, b)
 		if string(b) != "hello" {
 			panic("WriteString: wrong data")
 		}
+		mem.FreeSlice(nil, b)
+		os.Remove(name)
 	}
 	{
 		// Stdout, Stderr.

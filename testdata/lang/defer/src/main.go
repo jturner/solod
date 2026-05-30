@@ -47,29 +47,6 @@ func funcCalc() (int, error) {
 	return 42, nil
 }
 
-func blockScope() {
-	{
-		xopen(&state)
-		defer xclose(&state)
-		if state != 1 {
-			panic("unexpected state")
-		}
-	}
-	if state != 0 {
-		panic("unexpected state")
-	}
-	{
-		xopen(&state)
-		defer xclose(&state)
-		if state != 1 {
-			panic("unexpected state")
-		}
-	}
-	if state != 0 {
-		panic("unexpected state")
-	}
-}
-
 func main() {
 	funcScope()
 	if state != 0 {
@@ -86,10 +63,6 @@ func main() {
 	if funcReturnVar() != 1 {
 		panic("unexpected return value")
 	}
-	if state != 0 {
-		panic("unexpected state")
-	}
-	blockScope()
 	if state != 0 {
 		panic("unexpected state")
 	}

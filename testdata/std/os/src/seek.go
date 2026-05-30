@@ -14,7 +14,6 @@ func seekTest() {
 		if err != nil {
 			panic("Create failed")
 		}
-		defer os.Remove(name)
 		f.Write([]byte("abcdef"))
 		pos, err := f.Seek(0, io.SeekStart)
 		if err != nil {
@@ -32,6 +31,7 @@ func seekTest() {
 			panic("Seek: wrong data")
 		}
 		f.Close()
+		os.Remove(name)
 	}
 	{
 		// ReadAt.
@@ -40,7 +40,6 @@ func seekTest() {
 		if err != nil {
 			panic("WriteFile failed")
 		}
-		defer os.Remove(name)
 		f, err := os.Open(name)
 		if err != nil {
 			panic("Open failed")
@@ -57,6 +56,7 @@ func seekTest() {
 			panic("ReadAt: wrong data")
 		}
 		f.Close()
+		os.Remove(name)
 	}
 	{
 		// WriteAt.
@@ -65,7 +65,6 @@ func seekTest() {
 		if err != nil {
 			panic("Create failed")
 		}
-		defer os.Remove(name)
 		f.Write([]byte("hello world"))
 		_, err = f.WriteAt([]byte("WORLD"), 6)
 		if err != nil {
@@ -77,9 +76,10 @@ func seekTest() {
 		if err != nil {
 			panic("ReadFile failed")
 		}
-		defer mem.FreeSlice(nil, b)
 		if string(b) != "hello WORLD" {
 			panic("WriteAt: wrong data")
 		}
+		mem.FreeSlice(nil, b)
+		os.Remove(name)
 	}
 }
