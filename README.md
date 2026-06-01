@@ -207,9 +207,7 @@ So can also target [freestanding](doc/freestanding.md) environments.
 
 ## Roadmap
 
-✅ Core language features.
-
-✅ Core stdlib packages (v0.1):
+✅ Core language features and stdlib packages ([v0.1](https://github.com/solod-dev/solod/releases/tag/v0.1.0)):
 
 ```text
 ✓ bufio    ✓ io      ✓ path      ✓ strings

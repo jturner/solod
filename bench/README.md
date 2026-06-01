@@ -22,7 +22,8 @@ See the benchmarks for individual packages in the nested folders:
 [path](./path/README.md) •
 [strconv](./strconv/README.md) •
 [strings](./strings/README.md) •
-[time](./time/README.md)
+[time](./time/README.md) •
+[uuid](./uuid/README.md)
 
 ## Buffered I/O
 
