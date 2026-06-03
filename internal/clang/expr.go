@@ -630,21 +630,22 @@ func (g *Generator) emitMacroArg(w io.Writer, arg ast.Expr) {
 			g.fail(arg, "cannot use composite literal here; assign it to a variable first")
 		}
 	}
-	lit, ok := arg.(*ast.CompositeLit)
-	if !ok {
-		// Not a composite literal, emit directly.
-		g.emitExpr(w, arg)
+	// Handle composite literals either by rejecting them (arrays, slices, maps)
+	// or emitting them with extra parens (structs).
+	if lit, ok := arg.(*ast.CompositeLit); ok {
+		// Only struct value literals are safe; they are copied into the slot.
+		if _, ok := g.types.TypeOf(lit).Underlying().(*types.Struct); ok {
+			fmt.Fprint(w, "(")
+			g.emitExpr(w, lit)
+			fmt.Fprint(w, ")")
+			return
+		}
+		// Array, slice, or map literal: references stack-backed storage.
+		g.fail(arg, "cannot use composite literal here; assign it to a variable first")
 		return
 	}
-	// Only struct value literals are safe; they are copied into the slot.
-	if _, ok := g.types.TypeOf(lit).Underlying().(*types.Struct); ok {
-		fmt.Fprint(w, "(")
-		g.emitExpr(w, lit)
-		fmt.Fprint(w, ")")
-		return
-	}
-	// Array, slice, or map literal: references stack-backed storage.
-	g.fail(arg, "cannot use composite literal here; assign it to a variable first")
+	// Not a composite literal, emit directly.
+	g.emitExpr(w, arg)
 }
 
 // needsVoidParens reports whether expr needs parentheses in a (void) cast.
