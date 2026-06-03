@@ -97,7 +97,7 @@ int main(void) {
             so_panic("Addr.Next");
         }
         netip_Addr prev = netip_Addr_Prev(next);
-        if (so_mem_ne(&prev, &ip, sizeof(netip_Addr))) {
+        if (!netip_Addr_Equal(prev, ip)) {
             so_panic("Addr.Prev");
         }
     }

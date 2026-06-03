@@ -116,25 +116,6 @@ int main(void) {
         }
     }
     {
-        // Compare struct values.
-        point p1 = (point){.x = 11, .y = 22};
-        point p2 = (point){.x = 11, .y = 22};
-        point p3 = (point){.x = 11, .y = 33};
-        if (so_mem_ne(&p1, &p2, sizeof(point))) {
-            so_panic("p1 != p2");
-        }
-        if (so_mem_eq(&p1, &p3, sizeof(point))) {
-            so_panic("p1 == p3");
-        }
-        // And literals.
-        if ((so_mem_ne(&p1, &(point){.x = 11, .y = 22}, sizeof(point)))) {
-            so_panic("p1 != point{x: 11, y: 22}");
-        }
-        if ((so_mem_eq(&p1, &(point){}, sizeof(point)))) {
-            so_panic("p1 == point{}");
-        }
-    }
-    {
         // Type aliases.
         main_Person h = (main_Person){.name = so_str("Alice"), .age = 30};
         so_int age = main_Person_Age(&h);

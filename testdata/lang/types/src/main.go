@@ -144,25 +144,6 @@ func main() {
 		}
 	}
 	{
-		// Compare struct values.
-		p1 := point{x: 11, y: 22}
-		p2 := point{x: 11, y: 22}
-		p3 := point{x: 11, y: 33}
-		if p1 != p2 {
-			panic("p1 != p2")
-		}
-		if p1 == p3 {
-			panic("p1 == p3")
-		}
-		// And literals.
-		if (p1 != point{x: 11, y: 22}) {
-			panic("p1 != point{x: 11, y: 22}")
-		}
-		if (p1 == point{}) {
-			panic("p1 == point{}")
-		}
-	}
-	{
 		// Type aliases.
 		h := Human{name: "Alice", age: 30}
 		age := h.Age()

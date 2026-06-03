@@ -688,16 +688,7 @@ b := Benchmark{name: "Test", loop: struct{ n, i int }{n: 200, i: 10}}
 b.loop.n = 100
 ```
 
-Struct comparison (`==`, `!=`) uses `memcmp` and works for structs with primitive fields:
-
-```go
-p1 := point{x: 11, y: 22}
-p2 := point{x: 11, y: 22}
-if p1 == p2 { ... }
-```
-
-- Comparing structs that contain strings, slices, maps, or pointers compares raw bytes, not values.
-- Function call operands are not supported (e.g. `newPoint(1, 2) == p1` will fail).
+Struct comparison (`==`, `!=`) is not supported.
 
 `new()` works with types and values:
 

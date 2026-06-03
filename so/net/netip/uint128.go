@@ -61,3 +61,8 @@ func (u uint128) addOne() uint128 {
 	lo, carry := bits.Add64(u.lo, 1, 0)
 	return uint128{u.hi + carry, lo}
 }
+
+// equal reports whether u == u2.
+func (u uint128) equal(u2 uint128) bool {
+	return u.hi == u2.hi && u.lo == u2.lo
+}

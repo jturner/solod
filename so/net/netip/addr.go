@@ -390,6 +390,11 @@ func (ip Addr) Zone(buf []byte) string {
 	return strconv.FormatUint(buf, uint64(ip.scopeID), 10)
 }
 
+// Equal reports whether ip and ip2 are the same IP address.
+func (ip Addr) Equal(ip2 Addr) bool {
+	return ip.bitlen == ip2.bitlen && ip.addr.equal(ip2.addr) && ip.scopeID == ip2.scopeID
+}
+
 // Compare returns an integer comparing two IPs.
 // The result will be 0 if ip == ip2, -1 if ip < ip2, and +1 if ip > ip2.
 // The definition of "less than" is the same as the [Addr.Less] method.
@@ -612,12 +617,12 @@ func (ip Addr) IsGlobalUnicast() bool {
 	// and ULA IPv6 addresses are still considered "global unicast".
 	ipv4Unspecified := IPv4Unspecified()
 	ipv4Broadcast := AddrFrom4([4]byte{255, 255, 255, 255})
-	if ip.Is4() && (ip == ipv4Unspecified || ip == ipv4Broadcast) {
+	if ip.Is4() && (ip.Equal(ipv4Unspecified) || ip.Equal(ipv4Broadcast)) {
 		return false
 	}
 
 	ipv6Unspecified := IPv6Unspecified()
-	return ip != ipv6Unspecified &&
+	return !ip.Equal(ipv6Unspecified) &&
 		!ip.IsLoopback() &&
 		!ip.IsMulticast() &&
 		!ip.IsLinkLocalUnicast()
@@ -656,7 +661,7 @@ func (ip Addr) IsPrivate() bool {
 func (ip Addr) IsUnspecified() bool {
 	ipv4Unspecified := IPv4Unspecified()
 	ipv6Unspecified := IPv6Unspecified()
-	return ip == ipv4Unspecified || ip == ipv6Unspecified
+	return ip.Equal(ipv4Unspecified) || ip.Equal(ipv6Unspecified)
 }
 
 // Prefix keeps only the top b bits of IP, producing a Prefix

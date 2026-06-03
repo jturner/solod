@@ -128,24 +128,9 @@ func (g *Generator) emitBinaryExpr(w io.Writer, n *ast.BinaryExpr) {
 			return
 		}
 
-		// Struct comparison: emit so_mem_eq/ne calls.
+		// Struct comparison.
 		if _, ok := g.types.TypeOf(n.X).Underlying().(*types.Struct); ok {
-			if _, ok := n.X.(*ast.CallExpr); ok {
-				g.fail(n, "cannot compare struct call expressions")
-			}
-			if _, ok := n.Y.(*ast.CallExpr); ok {
-				g.fail(n, "cannot compare struct call expressions")
-			}
-			if n.Op == token.EQL {
-				fmt.Fprint(w, "so_mem_eq(&")
-			} else {
-				fmt.Fprint(w, "so_mem_ne(&")
-			}
-			g.emitExpr(w, n.X)
-			fmt.Fprint(w, ", &")
-			g.emitExpr(w, n.Y)
-			structType := g.mapType(n, g.types.TypeOf(n.X))
-			fmt.Fprintf(w, ", sizeof(%s))", structType)
+			g.fail(n, "struct comparison is not supported")
 			return
 		}
 

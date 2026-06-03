@@ -119,7 +119,8 @@ int main(void) {
         }
         point p = (point){1, 2};
         a = &p;
-        if (so_mem_ne(&*(point*)a, &((point){1, 2}), sizeof(point))) {
+        point ap = *(point*)a;
+        if (ap.x != 1 || ap.y != 2) {
             so_panic("want a.(point) == point{1, 2}");
         }
     }

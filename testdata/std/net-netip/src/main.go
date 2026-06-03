@@ -93,7 +93,7 @@ func main() {
 			panic("Addr.Next")
 		}
 		prev := next.Prev()
-		if prev != ip {
+		if !prev.Equal(ip) {
 			panic("Addr.Prev")
 		}
 	}

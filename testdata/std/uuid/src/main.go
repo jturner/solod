@@ -27,7 +27,7 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
-		if u1 != u2 {
+		if !u1.Equal(u2) {
 			panic("Parse/String mismatch")
 		}
 	}

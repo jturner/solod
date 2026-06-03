@@ -178,6 +178,11 @@ func (u *UUID) UnmarshalText(b []byte) error {
 	return nil
 }
 
+// Equal reports whether u and u2 are the same UUID.
+func (u UUID) Equal(u2 UUID) bool {
+	return u.Value == u2.Value
+}
+
 // Compare compares the UUID u with v.
 // If u is before v, it returns -1.
 // If u is after v, it returns +1.

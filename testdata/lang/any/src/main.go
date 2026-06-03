@@ -108,7 +108,8 @@ func main() {
 		}
 		var p point = point{1, 2}
 		a = p
-		if a.(point) != (point{1, 2}) {
+		ap := a.(point)
+		if ap.x != 1 || ap.y != 2 {
 			panic("want a.(point) == point{1, 2}")
 		}
 	}

@@ -29,7 +29,7 @@ int main(void) {
         if (err.self != NULL) {
             so_panic(so_error_cstr(err));
         }
-        if (so_mem_ne(&u1, &u2, sizeof(uuid_UUID))) {
+        if (!uuid_UUID_Equal(u1, u2)) {
             so_panic("Parse/String mismatch");
         }
     }

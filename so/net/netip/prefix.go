@@ -63,11 +63,16 @@ func (p Prefix) IsValid() bool { return p.bitsPlusOne > 0 }
 
 func (p Prefix) isZero() bool {
 	var zero Prefix
-	return p == zero
+	return p.Equal(zero)
 }
 
 // IsSingleIP reports whether p contains exactly one IP.
 func (p Prefix) IsSingleIP() bool { return p.IsValid() && p.Bits() == p.ip.BitLen() }
+
+// Equal reports whether p and p2 are the same prefix.
+func (p Prefix) Equal(p2 Prefix) bool {
+	return p.ip.Equal(p2.ip) && p.bitsPlusOne == p2.bitsPlusOne
+}
 
 // Compare returns an integer comparing two prefixes.
 // The result will be 0 if p == p2, -1 if p < p2, and +1 if p > p2.
@@ -193,7 +198,7 @@ func (p Prefix) Overlaps(o Prefix) bool {
 	if !p.IsValid() || !o.IsValid() {
 		return false
 	}
-	if p == o {
+	if p.Equal(o) {
 		return true
 	}
 	if p.ip.Is4() != o.ip.Is4() {
@@ -219,7 +224,7 @@ func (p Prefix) Overlaps(o Prefix) bool {
 	if o, err = o.ip.Prefix(minBits); err != nil {
 		return false
 	}
-	return p.ip == o.ip
+	return p.ip.Equal(o.ip)
 }
 
 // AppendText implements the [encoding.TextAppender] interface.
