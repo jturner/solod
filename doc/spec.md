@@ -595,7 +595,7 @@ type FileResult struct {
 }
 ```
 
-Not supported: returning interface values, named return values.
+Named return values are not supported.
 
 ## Variadic functions
 

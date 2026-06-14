@@ -19,6 +19,7 @@ Solod provides a growing set of high-level packages similar to Go's stdlib, and 
 [math/bits](#somathbits) •
 [math/rand](#somathrand) •
 [mem](#somem) •
+[net](#sonet) •
 [net/netip](#sonetnetip) •
 [os](#soos) •
 [path](#sopath) •
@@ -278,6 +279,22 @@ Types:
 - `Allocator` interface - custom allocator support (`Alloc`, `Realloc`, `Free`).
 - `SystemAllocator` - default allocator backed by C `calloc`/`realloc`/`free`.
 - `Arena` - bump allocator backed by a fixed buffer (`Alloc`, `Realloc`, `Reset`).
+
+## [so/net](https://pkg.go.dev/solod.dev/so/net)
+
+Basic TCP networking. A small subset of Go's `net` package: only TCP is supported (networks `"tcp"`, `"tcp4"`, `"tcp6"`). There is no UDP, Unix socket, or concurrent server support.
+
+Functions:
+
+- `ResolveTCPAddr` resolves a `host:port` string to a `TCPAddr`.
+- `DialTCP` connects to a TCP address; `ListenTCP` announces on a local one.
+- `SplitHostPort` splits a `host:port` address into a `HostPort`; `JoinHostPort` does the reverse into a caller buffer.
+
+Types:
+
+- `TCPAddr` is the address of a TCP endpoint.
+- `TCPConn` is a TCP connection; implements `io.Reader` and `io.Writer`.
+- `TCPListener` is a TCP listener; its `Accept` method returns the next `TCPConn`.
 
 ## [so/net/netip](https://pkg.go.dev/solod.dev/so/net/netip)
 
