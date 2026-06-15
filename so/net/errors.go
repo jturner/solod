@@ -26,6 +26,9 @@ var (
 	ErrMissingBracket = errors.New("net: missing ']' in address")
 	// ErrMissingPort indicates an address is missing the port.
 	ErrMissingPort = errors.New("net: missing port in address")
+	// ErrMsgTooLong indicates a datagram was larger
+	// than the maximum allowed size.
+	ErrMsgTooLong = errors.New("net: message too long")
 	// ErrNoSuchHost indicates the host could not be resolved.
 	ErrNoSuchHost = errors.New("net: no such host")
 	// ErrNoSuitableAddr indicates the address does not match the network's
@@ -70,6 +73,9 @@ func mapError() error {
 	}
 	if errno == eCONNABORTED {
 		return ErrConnAborted
+	}
+	if errno == eMSGSIZE {
+		return ErrMsgTooLong
 	}
 	if errno == eTIMEDOUT {
 		return ErrTimeout

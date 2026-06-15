@@ -3,9 +3,7 @@ package net
 import (
 	"solod.dev/so/c"
 	"solod.dev/so/io"
-	"solod.dev/so/mem"
 	"solod.dev/so/net/netip"
-	"solod.dev/so/strconv"
 	"solod.dev/so/time"
 )
 
@@ -27,8 +25,12 @@ func (TCPAddr) Network() string {
 // built into buf. buf must have at least netip.MaxAddrPortLen bytes of
 // capacity; the returned string aliases buf.
 func (a TCPAddr) String(buf []byte) string {
-	ap := netip.AddrPortFrom(a.IP, uint16(a.Port))
-	return ap.String(buf)
+	return a.addrPort().String(buf)
+}
+
+// addrPort packs the address into a netip.AddrPort.
+func (a TCPAddr) addrPort() netip.AddrPort {
+	return netip.AddrPortFrom(a.IP, uint16(a.Port))
 }
 
 // family returns the address family (AF_INET or AF_INET6)
@@ -57,99 +59,17 @@ func (a TCPAddr) family() c.Int {
 //	ResolveTCPAddr("tcp", "localhost:http")
 //	ResolveTCPAddr("tcp", ":80")
 func ResolveTCPAddr(network, address string) (TCPAddr, error) {
-	var addrs [1]TCPAddr
-	if _, err := resolveTCPAddrs(network, address, addrs[:]); err != nil {
+	var aps [1]netip.AddrPort
+	opts := resolveOpts{
+		network:  network,
+		proto:    "tcp",
+		socktype: c_SOCK_STREAM,
+		address:  address,
+	}
+	if _, err := resolveAddrs(opts, aps[:]); err != nil {
 		return TCPAddr{}, err
 	}
-	return addrs[0], nil
-}
-
-// resolveTCPAddrs resolves address into TCP endpoints, storing up to len(dst)
-// of them in dst and returning how many were stored (at least one on success).
-// An empty host or IP literal yields a single address; a host name may yield
-// several, in the order they should be tried.
-func resolveTCPAddrs(network, address string, dst []TCPAddr) (int, error) {
-	family := familyFor(network)
-	if family == afInvalid {
-		return 0, ErrUnknownNetwork
-	}
-	hp, err := SplitHostPort(address)
-	if err != nil {
-		return 0, err
-	}
-	port, ok := lookupPort(hp.Port)
-	if !ok {
-		return 0, ErrInvalidPort
-	}
-
-	// Empty host: the unspecified address for the family.
-	if len(hp.Host) == 0 {
-		dst[0] = unspecifiedAddr(family, port)
-		return 1, nil
-	}
-
-	// IP literal: no resolution needed, but it must match the network's family
-	// ("tcp4" rejects an IPv6 literal and vice versa).
-	if ip, perr := netip.ParseAddr(hp.Host); perr == nil {
-		if !familyMatch(family, ip) {
-			return 0, ErrNoSuitableAddr
-		}
-		dst[0] = TCPAddr{IP: ip, Port: port}
-		return 1, nil
-	}
-
-	// Host name: resolve via getaddrinfo and decode each result.
-	hints := addrinfo{ai_family: family, ai_socktype: c_SOCK_STREAM}
-	var ai *addrinfo
-	if getaddrinfo(hp.Host, nil, &hints, &ai) != 0 || ai == nil {
-		return 0, ErrNoSuchHost
-	}
-	n := 0
-	for p := ai; p != nil && n < len(dst); p = p.ai_next {
-		var stor sockaddr_storage
-		mem.Copy(&stor, p.ai_addr, int(p.ai_addrlen))
-		addr := stor.tcpAddr()
-		if !addr.IP.IsValid() {
-			continue
-		}
-		addr.Port = port
-		dst[n] = addr
-		n++
-	}
-	freeaddrinfo(ai)
-	if n == 0 {
-		return 0, ErrNoSuchHost
-	}
-	return n, nil
-}
-
-// lookupPort resolves a port string to a numeric port. An empty string means
-// port 0. Otherwise the string may be a decimal number or a service name from
-// the services database (for example "http"). Returns the port and true on
-// success, or false if the number is out of range or the service name is unknown.
-func lookupPort(port string) (int, bool) {
-	if port == "" {
-		return 0, true
-	}
-	n, err := strconv.Atoi(port)
-	if err == nil {
-		return n, n >= 0 && n <= 65535
-	}
-	se := getservbyname(port, "tcp")
-	if se == nil {
-		return 0, false
-	}
-	return int(ntohs(uint16(se.s_port))), true
-}
-
-// unspecifiedAddr returns the unspecified address (0.0.0.0 or ::) for the
-// family, with the given port. It is used when the host part is empty.
-func unspecifiedAddr(family c.Int, port int) TCPAddr {
-	ip := netip.IPv4Unspecified()
-	if family == c_AF_INET6 {
-		ip = netip.IPv6Unspecified()
-	}
-	return TCPAddr{IP: ip, Port: port}
+	return tcpAddrOf(aps[0]), nil
 }
 
 // TCPConn abstracts a TCP network connection.
@@ -177,7 +97,7 @@ type TCPConn struct {
 // A laddr with an invalid IP binds only its port, on the
 // unspecified address of the remote's family.
 func DialTCP(network string, laddr, raddr *TCPAddr) (TCPConn, error) {
-	if familyFor(network) == afInvalid {
+	if familyFor(network, "tcp") == afInvalid {
 		return TCPConn{}, ErrUnknownNetwork
 	}
 	if raddr == nil {
@@ -185,7 +105,7 @@ func DialTCP(network string, laddr, raddr *TCPAddr) (TCPConn, error) {
 	}
 
 	var rstor sockaddr_storage
-	rlen := rstor.fill(*raddr)
+	rlen := rstor.fill(raddr.addrPort())
 	if rlen == 0 {
 		return TCPConn{}, ErrAddrNotAvail
 	}
@@ -201,10 +121,10 @@ func DialTCP(network string, laddr, raddr *TCPAddr) (TCPConn, error) {
 		local := *laddr
 		if !local.IP.IsValid() {
 			// Bind only the port, on the unspecified address of the remote's family.
-			local.IP = unspecifiedAddr(raddr.family(), 0).IP
+			local.IP = unspecifiedIP(raddr.family())
 		}
 		var lstor sockaddr_storage
-		llen := lstor.fill(local)
+		llen := lstor.fill(local.addrPort())
 		if llen == 0 || bind(fd, lstor.sockAddr(), llen) != 0 {
 			err := mapError()
 			fd_close(fd)
@@ -223,7 +143,7 @@ func DialTCP(network string, laddr, raddr *TCPAddr) (TCPConn, error) {
 	}
 
 	conn := TCPConn{fd: fd, raddr: *raddr}
-	conn.laddr = sockname(fd)
+	conn.laddr = tcpAddrOf(sockname(fd))
 	return conn, nil
 }
 
@@ -372,14 +292,14 @@ type TCPListener struct {
 // for "tcp6". A zero Port lets the system pick a free port, which the returned
 // listener's [TCPListener.Addr] reports.
 func ListenTCP(network string, laddr *TCPAddr) (TCPListener, error) {
-	family := familyFor(network)
+	family := familyFor(network, "tcp")
 	if family == afInvalid {
 		return TCPListener{}, ErrUnknownNetwork
 	}
 
 	// A nil laddr, or one with an invalid IP, binds the unspecified address
 	// (all interfaces) for the network's family, keeping any requested port.
-	addr := unspecifiedAddr(family, 0)
+	addr := TCPAddr{IP: unspecifiedIP(family)}
 	if laddr != nil {
 		addr.Port = laddr.Port
 		if laddr.IP.IsValid() {
@@ -388,7 +308,7 @@ func ListenTCP(network string, laddr *TCPAddr) (TCPListener, error) {
 	}
 
 	var stor sockaddr_storage
-	slen := stor.fill(addr)
+	slen := stor.fill(addr.addrPort())
 	if slen == 0 {
 		return TCPListener{}, ErrAddrNotAvail
 	}
@@ -408,7 +328,7 @@ func ListenTCP(network string, laddr *TCPAddr) (TCPListener, error) {
 	}
 
 	// Report the bound address; with port 0 the system assigns the real port.
-	return TCPListener{fd: fd, addr: sockname(fd)}, nil
+	return TCPListener{fd: fd, addr: tcpAddrOf(sockname(fd))}, nil
 }
 
 // Accept waits for and returns the next connection to the listener.
@@ -429,8 +349,8 @@ func (l *TCPListener) Accept() (TCPConn, error) {
 			closeOnExec(fd)
 			// Report the accepted socket's real local address; for a wildcard
 			// listener this is the concrete interface, not l.addr's 0.0.0.0/::.
-			conn := TCPConn{fd: fd, laddr: sockname(fd)}
-			conn.raddr = stor.tcpAddr()
+			conn := TCPConn{fd: fd, laddr: tcpAddrOf(sockname(fd))}
+			conn.raddr = tcpAddrOf(stor.addrPort())
 			return conn, nil
 		}
 		if errno != eINTR {
@@ -468,100 +388,7 @@ func (l *TCPListener) SetDeadline(t time.Time) error {
 	return nil
 }
 
-// sockname returns the local address of fd, or the zero TCPAddr on error.
-func sockname(fd c.Int) TCPAddr {
-	var stor sockaddr_storage
-	slen := c.UInt(c.Sizeof[sockaddr_storage]())
-	if getsockname(fd, stor.sockAddr(), &slen) != 0 {
-		return TCPAddr{}
-	}
-	return stor.tcpAddr()
-}
-
-// waitFD blocks until fd is ready for the requested events (c_POLLIN for a
-// read or accept, c_POLLOUT for a write) or the deadline passes, in which case
-// it returns ErrTimeout. A zero deadline means no deadline: waitFD returns nil
-// immediately and lets the following syscall block indefinitely.
-func waitFD(fd c.Int, events c.Short, deadline time.Time) error {
-	if deadline.IsZero() {
-		return nil
-	}
-	for {
-		d := time.Until(deadline)
-		if d <= 0 {
-			return ErrTimeout
-		}
-		// poll is used rather than SO_RCVTIMEO/SO_SNDTIMEO because, although those
-		// timeouts bound read and write on every platform, accept() ignores them on
-		// macOS/BSD, so a listener deadline there would never fire. poll bounds all
-		// three uniformly.
-		pfd := pollfd{fd: fd, events: events}
-		n := poll(&pfd, 1, pollTimeout(d))
-		if n > 0 {
-			return nil
-		}
-		// n == 0 means this poll slice elapsed: loop to recheck the deadline
-		// (it may not have arrived yet if pollTimeout clamped a long wait).
-		// EINTR likewise retries. Any other error is reported.
-		if n < 0 && errno != eINTR {
-			return mapError()
-		}
-	}
-}
-
-// pollTimeout converts a positive duration to a poll timeout in milliseconds,
-// rounding sub-millisecond values up to 1 (never 0, which would make poll
-// return immediately) and clamping to the int range so a very distant deadline
-// cannot overflow into a negative (block-forever) value.
-func pollTimeout(d time.Duration) c.Int {
-	ms := d.Milliseconds()
-	if ms < 1 {
-		return 1
-	}
-	const maxMS = 1<<31 - 1
-	if ms > maxMS {
-		return maxMS
-	}
-	return c.Int(ms)
-}
-
-// closeOnExec sets the close-on-exec flag on fd so the socket is not inherited
-// by child processes spawned via exec. It is best-effort: errors are ignored,
-// and there is a small window between creating the fd and this call in which a
-// concurrent exec could still inherit it (the atomic SOCK_CLOEXEC/accept4 forms
-// are Linux-only, so this portable fallback is used everywhere).
-func closeOnExec(fd c.Int) {
-	fcntl(fd, c_F_SETFD, c_FD_CLOEXEC)
-}
-
-// afInvalid is returned by familyFor for an unsupported network. Real address
-// families are non-negative, so -1 is a safe sentinel.
-const afInvalid = -1
-
-// familyFor maps a network name to an address family, or afInvalid if the
-// network is not a supported TCP network ("tcp", "tcp4", "tcp6").
-func familyFor(network string) c.Int {
-	if network == "tcp" {
-		return c_AF_UNSPEC
-	}
-	if network == "tcp4" {
-		return c_AF_INET
-	}
-	if network == "tcp6" {
-		return c_AF_INET6
-	}
-	return afInvalid
-}
-
-// familyMatch reports whether ip is usable on the given address family.
-// AF_UNSPEC (the "tcp" network) accepts any IP; AF_INET requires an IPv4
-// address and AF_INET6 an IPv6 one.
-func familyMatch(family c.Int, ip netip.Addr) bool {
-	if family == c_AF_INET {
-		return ip.Is4()
-	}
-	if family == c_AF_INET6 {
-		return ip.Is6()
-	}
-	return true
+// tcpAddrOf builds a TCPAddr from a netip.AddrPort.
+func tcpAddrOf(ap netip.AddrPort) TCPAddr {
+	return TCPAddr{IP: ap.Addr(), Port: int(ap.Port())}
 }

@@ -1,17 +1,19 @@
-// Package net provides basic TCP networking.
+// Package net provides basic TCP and UDP networking.
 //
-// It is a small subset of Go's net package. Only TCP is supported (networks
-// "tcp", "tcp4", and "tcp6"); there is no UDP, Unix socket, or concurrent
-// server support.
+// It is a small subset of Go's net package. TCP (networks "tcp", "tcp4",
+// "tcp6") and UDP (networks "udp", "udp4", "udp6") are supported; there is no
+// Unix socket or concurrent server support.
 //
-// Most clients will need only the basic interface provided
-// by the [ResolveTCPAddr], [DialTCP] and [ListenTCP] functions,
-// and the associated [TCPConn] and [TCPListener] types.
+// Most TCP clients will need only the basic interface provided by the
+// [ResolveTCPAddr], [DialTCP] and [ListenTCP] functions, and the associated
+// [TCPConn] and [TCPListener] types. UDP is served by [ResolveUDPAddr],
+// [DialUDP] (a connected socket, with [UDPConn.Read]/[UDPConn.Write]) and
+// [ListenUDP] (an unconnected socket, with [UDPConn.ReadFrom]/[UDPConn.WriteTo]).
 //
 // Accept, Read, and Write block by default. They can be bounded with
-// a deadline: [TCPConn.SetDeadline] and [TCPListener.SetDeadline] make
-// a pending call fail with ErrTimeout once the deadline passes. Without
-// a deadline, a blocked call waits indefinitely.
+// a deadline: [TCPConn.SetDeadline], [TCPListener.SetDeadline] and
+// [UDPConn.SetDeadline] make a pending call fail with ErrTimeout once the
+// deadline passes. Without a deadline, a blocked call waits indefinitely.
 package net
 
 import (

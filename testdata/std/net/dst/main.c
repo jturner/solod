@@ -3,43 +3,41 @@
 // -- Forward declarations --
 static void testSplitHostPort(void);
 static void testJoinHostPort(void);
-static void testResolveNamedPort(void);
-static void testResolveHostname(void);
-static void testResolveFamilyMismatch(void);
-static void testListen(void);
-static void testListenAll(void);
-static void testDial(void);
-static void testDialRefused(void);
-static void testReadEOF(void);
-static void testReadDeadline(void);
-static void testClearDeadline(void);
-static void testAcceptDeadline(void);
-static void testCloseErrors(void);
 static void noError(so_Error err);
+static void testTCP(void);
+static void testTCP_ResolveNamedPort(void);
+static void testTCP_ResolveHostname(void);
+static void testTCP_ResolveFamilyMismatch(void);
+static void testTCP_Listen(void);
+static void testTCP_ListenAll(void);
+static void testTCP_Dial(void);
+static void testTCP_DialRefused(void);
+static void testTCP_ReadEOF(void);
+static void testTCP_ReadDeadline(void);
+static void testTCP_ClearDeadline(void);
+static void testTCP_AcceptDeadline(void);
+static void testTCP_CloseErrors(void);
+static void testUDP(void);
+static void testUDP_ResolveAddr(void);
+static void testUDP_Listen(void);
+static void testUDP_Dial(void);
+static void testUDP_ReadFromWriteTo(void);
+static void testUDP_ReadDeadline(void);
+static void testUDP_CloseErrors(void);
 
-// -- Implementation --
+// -- main.go --
 
 int main(void) {
     so_println("%s", "solod.dev/so/net");
     testSplitHostPort();
     testJoinHostPort();
-    testResolveNamedPort();
-    testResolveHostname();
-    testResolveFamilyMismatch();
-    testListen();
-    testListenAll();
-    testDial();
-    testDialRefused();
-    testReadEOF();
-    testReadDeadline();
-    testClearDeadline();
-    testAcceptDeadline();
-    testCloseErrors();
+    testTCP();
+    testUDP();
     return 0;
 }
 
 static void testSplitHostPort(void) {
-    so_print("%s", "- split host:port...");
+    so_print("%s", "- split host-port...");
     net_HostPortResult _res1 = net_SplitHostPort(so_str("127.0.0.1:8080"));
     net_HostPort hp = _res1.val;
     so_Error err = _res1.err;
@@ -50,7 +48,7 @@ static void testSplitHostPort(void) {
 }
 
 static void testJoinHostPort(void) {
-    so_print("%s", "- join host:port...");
+    so_print("%s", "- join host-port...");
     so_byte buf[64] = {0};
     if (so_string_ne(net_JoinHostPort(so_array_slice(so_byte, buf, 0, 64, 64), so_str("::1"), so_str("80")), so_str("[::1]:80"))) {
         so_panic("unexpected JoinHostPort result");
@@ -58,8 +56,31 @@ static void testJoinHostPort(void) {
     so_println("%s", "ok");
 }
 
-static void testResolveNamedPort(void) {
-    so_print("%s", "- resolve a named port...");
+static void noError(so_Error err) {
+    if (err.self != NULL) {
+        so_panic(so_error_cstr(err));
+    }
+}
+
+// -- tcp.go --
+
+static void testTCP(void) {
+    testTCP_ResolveNamedPort();
+    testTCP_ResolveHostname();
+    testTCP_ResolveFamilyMismatch();
+    testTCP_Listen();
+    testTCP_ListenAll();
+    testTCP_Dial();
+    testTCP_DialRefused();
+    testTCP_ReadEOF();
+    testTCP_ReadDeadline();
+    testTCP_ClearDeadline();
+    testTCP_AcceptDeadline();
+    testTCP_CloseErrors();
+}
+
+static void testTCP_ResolveNamedPort(void) {
+    so_print("%s", "- TCP resolve a named port...");
     // A named port resolves via the services database (no DNS for the host).
     net_TCPAddrResult _res1 = net_ResolveTCPAddr(so_str("tcp"), so_str("127.0.0.1:http"));
     net_TCPAddr addr = _res1.val;
@@ -70,8 +91,8 @@ static void testResolveNamedPort(void) {
     so_println("%s", "ok");
 }
 
-static void testResolveHostname(void) {
-    so_print("%s", "- resolve a hostname...");
+static void testTCP_ResolveHostname(void) {
+    so_print("%s", "- TCP resolve a hostname...");
     // "localhost" resolves via getaddrinfo (the system resolver), without
     // any external DNS. It must come back as a loopback address.
     net_TCPAddrResult _res1 = net_ResolveTCPAddr(so_str("tcp"), so_str("localhost:80"));
@@ -87,8 +108,8 @@ static void testResolveHostname(void) {
     so_println("%s", "ok");
 }
 
-static void testResolveFamilyMismatch(void) {
-    so_print("%s", "- resolve family mismatch...");
+static void testTCP_ResolveFamilyMismatch(void) {
+    so_print("%s", "- TCP resolve family mismatch...");
     // An IP literal must match the network's family: "tcp4" rejects an IPv6
     // literal, "tcp6" an IPv4 one. (Needs the real AF_* values, so this can
     // only run transpiled, not in the host test.)
@@ -109,8 +130,8 @@ static void testResolveFamilyMismatch(void) {
     so_println("%s", "ok");
 }
 
-static void testListen(void) {
-    so_print("%s", "- listen...");
+static void testTCP_Listen(void) {
+    so_print("%s", "- TCP listen...");
     // Resolve an IP literal (no DNS).
     net_TCPAddrResult _res1 = net_ResolveTCPAddr(so_str("tcp"), so_str("127.0.0.1:0"));
     net_TCPAddr laddr = _res1.val;
@@ -136,8 +157,8 @@ static void testListen(void) {
     so_println("%s", "ok");
 }
 
-static void testListenAll(void) {
-    so_print("%s", "- listen on all interfaces...");
+static void testTCP_ListenAll(void) {
+    so_print("%s", "- TCP listen on all interfaces...");
     // A nil laddr binds the unspecified address (all interfaces), with an
     // OS-assigned port.
     net_TCPListenerResult _res1 = net_ListenTCP(so_str("tcp"), NULL);
@@ -151,11 +172,11 @@ static void testListenAll(void) {
     so_println("%s", "ok");
 }
 
-static void testDial(void) {
+static void testTCP_Dial(void) {
     // A single-threaded loopback echo. Without goroutines this works because the
     // connect completes into the listener backlog and the small payload fits in
     // the kernel socket buffers, so no call blocks waiting on another thread.
-    so_print("%s", "- dial...");
+    so_print("%s", "- TCP dial...");
     // Listen on an OS-assigned port (IP literal, no DNS).
     net_TCPAddrResult _res1 = net_ResolveTCPAddr(so_str("tcp"), so_str("127.0.0.1:0"));
     net_TCPAddr lnAddr = _res1.val;
@@ -224,8 +245,8 @@ static void testDial(void) {
     so_println("%s", "ok");
 }
 
-static void testDialRefused(void) {
-    so_print("%s", "- dial refused...");
+static void testTCP_DialRefused(void) {
+    so_print("%s", "- TCP dial refused...");
     // Bind a port, learn its address, then close the listener so nothing is
     // listening there. Dialing it must be refused.
     net_TCPAddrResult _res1 = net_ResolveTCPAddr(so_str("tcp"), so_str("127.0.0.1:0"));
@@ -248,8 +269,8 @@ static void testDialRefused(void) {
     so_println("%s", "ok");
 }
 
-static void testReadEOF(void) {
-    so_print("%s", "- read EOF...");
+static void testTCP_ReadEOF(void) {
+    so_print("%s", "- TCP read EOF...");
     // Connect a pair, then close the server end. The client's next read must
     // report end of stream.
     net_TCPAddrResult _res1 = net_ResolveTCPAddr(so_str("tcp"), so_str("127.0.0.1:0"));
@@ -283,8 +304,8 @@ static void testReadEOF(void) {
     so_println("%s", "ok");
 }
 
-static void testReadDeadline(void) {
-    so_print("%s", "- read deadline...");
+static void testTCP_ReadDeadline(void) {
+    so_print("%s", "- TCP read deadline...");
     // Set up a connected pair, then read on the server side with no data sent.
     net_TCPAddrResult _res1 = net_ResolveTCPAddr(so_str("tcp"), so_str("127.0.0.1:0"));
     net_TCPAddr lnAddr = _res1.val;
@@ -319,8 +340,8 @@ static void testReadDeadline(void) {
     so_println("%s", "ok");
 }
 
-static void testClearDeadline(void) {
-    so_print("%s", "- clear deadline...");
+static void testTCP_ClearDeadline(void) {
+    so_print("%s", "- TCP clear deadline...");
     // After a read deadline fires, clearing it must leave the connection usable.
     net_TCPAddrResult _res1 = net_ResolveTCPAddr(so_str("tcp"), so_str("127.0.0.1:0"));
     net_TCPAddr lnAddr = _res1.val;
@@ -369,8 +390,8 @@ static void testClearDeadline(void) {
     so_println("%s", "ok");
 }
 
-static void testAcceptDeadline(void) {
-    so_print("%s", "- accept deadline...");
+static void testTCP_AcceptDeadline(void) {
+    so_print("%s", "- TCP accept deadline...");
     // A listener with a short deadline and no incoming connection must time out.
     net_TCPAddrResult _res1 = net_ResolveTCPAddr(so_str("tcp"), so_str("127.0.0.1:0"));
     net_TCPAddr lnAddr = _res1.val;
@@ -392,8 +413,8 @@ static void testAcceptDeadline(void) {
     so_println("%s", "ok");
 }
 
-static void testCloseErrors(void) {
-    so_print("%s", "- close errors...");
+static void testTCP_CloseErrors(void) {
+    so_print("%s", "- TCP close errors...");
     // A double close, and any I/O after close, must report ErrClosed on both
     // connections and listeners.
     net_TCPAddrResult _res1 = net_ResolveTCPAddr(so_str("tcp"), so_str("127.0.0.1:0"));
@@ -453,8 +474,245 @@ static void testCloseErrors(void) {
     so_println("%s", "ok");
 }
 
-static void noError(so_Error err) {
-    if (err.self != NULL) {
-        so_panic(so_error_cstr(err));
+// -- udp.go --
+
+static void testUDP(void) {
+    testUDP_ResolveAddr();
+    testUDP_Listen();
+    testUDP_Dial();
+    testUDP_ReadFromWriteTo();
+    testUDP_ReadDeadline();
+    testUDP_CloseErrors();
+}
+
+static void testUDP_ResolveAddr(void) {
+    so_print("%s", "- UDP resolve a named port...");
+    // A named port resolves via the udp services database (no DNS for the host).
+    net_UDPAddrResult _res1 = net_ResolveUDPAddr(so_str("udp"), so_str("127.0.0.1:domain"));
+    net_UDPAddr addr = _res1.val;
+    so_Error err = _res1.err;
+    if (err.self != NULL || addr.Port != 53) {
+        so_panic("failed to resolve named UDP port");
     }
+    so_println("%s", "ok");
+    so_print("%s", "- UDP resolve a hostname...");
+    // "localhost" resolves via getaddrinfo (the system resolver), without
+    // any external DNS. It must come back as a loopback address.
+    net_UDPAddrResult _res2 = net_ResolveUDPAddr(so_str("udp"), so_str("localhost:53"));
+    addr = _res2.val;
+    err = _res2.err;
+    noError(err);
+    if (addr.Port != 53) {
+        so_panic("unexpected port");
+    }
+    if (!netip_Addr_IsLoopback(addr.IP)) {
+        so_panic("localhost should resolve to a loopback address");
+    }
+    so_println("%s", "ok");
+}
+
+static void testUDP_Listen(void) {
+    so_print("%s", "- UDP listen...");
+    // Resolve an IP literal (no DNS) and listen on an OS-assigned port.
+    net_UDPAddrResult _res1 = net_ResolveUDPAddr(so_str("udp"), so_str("127.0.0.1:0"));
+    net_UDPAddr laddr = _res1.val;
+    so_Error err = _res1.err;
+    if (err.self != NULL || laddr.Port != 0) {
+        so_panic("failed to resolve listen address");
+    }
+    net_UDPConnResult _res2 = net_ListenUDP(so_str("udp"), &laddr);
+    net_UDPConn conn = _res2.val;
+    err = _res2.err;
+    noError(err);
+    if (net_UDPConn_LocalAddr(&conn).Port == 0) {
+        so_panic("listener port not assigned");
+    }
+    noError(net_UDPConn_Close(&conn));
+    so_println("%s", "ok");
+}
+
+static void testUDP_Dial(void) {
+    // A single-threaded loopback echo. Datagrams are buffered in the kernel, so
+    // no call blocks waiting on another thread.
+    so_print("%s", "- UDP dial...");
+    // Server listens on an OS-assigned port.
+    net_UDPAddrResult _res1 = net_ResolveUDPAddr(so_str("udp"), so_str("127.0.0.1:0"));
+    net_UDPAddr srvAddr = _res1.val;
+    so_Error err = _res1.err;
+    noError(err);
+    net_UDPConnResult _res2 = net_ListenUDP(so_str("udp"), &srvAddr);
+    net_UDPConn server = _res2.val;
+    err = _res2.err;
+    noError(err);
+    // Client connects to the server.
+    net_UDPAddr raddr = net_UDPConn_LocalAddr(&server);
+    net_UDPConnResult _res3 = net_DialUDP(so_str("udp"), NULL, &raddr);
+    net_UDPConn client = _res3.val;
+    err = _res3.err;
+    noError(err);
+    // The client's remote address is the server.
+    if (net_UDPConn_RemoteAddr(&client).Port != raddr.Port) {
+        so_panic("client remote addr mismatch");
+    }
+    // Client writes a datagram; the server receives it and learns the client's
+    // address, then echoes it back via WriteTo.
+    {
+        so_R_int_err _res4 = net_UDPConn_Write(&client, so_string_bytes(so_str("ping")));
+        so_Error err = _res4.err;
+        if (err.self != NULL) {
+            so_panic(so_error_cstr(err));
+        }
+    }
+    so_byte buf[256] = {0};
+    net_UDPReadResult _res5 = net_UDPConn_ReadFrom(&server, so_array_slice(so_byte, buf, 0, 256, 256));
+    net_UDPRead r = _res5.val;
+    err = _res5.err;
+    noError(err);
+    if (r.Addr.Port != net_UDPConn_LocalAddr(&client).Port) {
+        so_panic("server learned wrong client addr");
+    }
+    {
+        so_R_int_err _res6 = net_UDPConn_WriteTo(&server, so_array_slice(so_byte, buf, 0, r.N, 256), &r.Addr);
+        so_Error err = _res6.err;
+        if (err.self != NULL) {
+            so_panic(so_error_cstr(err));
+        }
+    }
+    // Client reads the echo on its connected socket.
+    so_byte got[256] = {0};
+    so_R_int_err _res7 = net_UDPConn_Read(&client, so_array_slice(so_byte, got, 0, 256, 256));
+    so_int n = _res7.val;
+    err = _res7.err;
+    noError(err);
+    if (so_string_ne(so_bytes_string(so_array_slice(so_byte, got, 0, n, 256)), so_str("ping"))) {
+        so_panic("echo mismatch");
+    }
+    net_UDPConn_Close(&client);
+    net_UDPConn_Close(&server);
+    so_println("%s", "ok");
+}
+
+static void testUDP_ReadFromWriteTo(void) {
+    so_print("%s", "- UDP ReadFrom/WriteTo...");
+    // Two unconnected sockets exchange datagrams in both directions, with each
+    // receiver checking the reported source address against the sender's local
+    // address.
+    net_UDPAddrResult _res1 = net_ResolveUDPAddr(so_str("udp"), so_str("127.0.0.1:0"));
+    net_UDPAddr addrA = _res1.val;
+    so_Error err = _res1.err;
+    noError(err);
+    net_UDPConnResult _res2 = net_ListenUDP(so_str("udp"), &addrA);
+    net_UDPConn a = _res2.val;
+    err = _res2.err;
+    noError(err);
+    net_UDPAddrResult _res3 = net_ResolveUDPAddr(so_str("udp"), so_str("127.0.0.1:0"));
+    net_UDPAddr addrB = _res3.val;
+    err = _res3.err;
+    noError(err);
+    net_UDPConnResult _res4 = net_ListenUDP(so_str("udp"), &addrB);
+    net_UDPConn b = _res4.val;
+    err = _res4.err;
+    noError(err);
+    // A -> B.
+    net_UDPAddr bAddr = net_UDPConn_LocalAddr(&b);
+    {
+        so_R_int_err _res5 = net_UDPConn_WriteTo(&a, so_string_bytes(so_str("ping")), &bAddr);
+        so_Error err = _res5.err;
+        if (err.self != NULL) {
+            so_panic(so_error_cstr(err));
+        }
+    }
+    so_byte buf[256] = {0};
+    net_UDPReadResult _res6 = net_UDPConn_ReadFrom(&b, so_array_slice(so_byte, buf, 0, 256, 256));
+    net_UDPRead r = _res6.val;
+    err = _res6.err;
+    noError(err);
+    if (so_string_ne(so_bytes_string(so_array_slice(so_byte, buf, 0, r.N, 256)), so_str("ping"))) {
+        so_panic("A->B payload mismatch");
+    }
+    if (r.Addr.Port != net_UDPConn_LocalAddr(&a).Port) {
+        so_panic("A->B source addr mismatch");
+    }
+    // B -> A, replying to the learned source address.
+    {
+        so_R_int_err _res7 = net_UDPConn_WriteTo(&b, so_string_bytes(so_str("pong")), &r.Addr);
+        so_Error err = _res7.err;
+        if (err.self != NULL) {
+            so_panic(so_error_cstr(err));
+        }
+    }
+    so_byte buf2[256] = {0};
+    net_UDPReadResult _res8 = net_UDPConn_ReadFrom(&a, so_array_slice(so_byte, buf2, 0, 256, 256));
+    net_UDPRead r2 = _res8.val;
+    err = _res8.err;
+    noError(err);
+    if (so_string_ne(so_bytes_string(so_array_slice(so_byte, buf2, 0, r2.N, 256)), so_str("pong"))) {
+        so_panic("B->A payload mismatch");
+    }
+    if (r2.Addr.Port != net_UDPConn_LocalAddr(&b).Port) {
+        so_panic("B->A source addr mismatch");
+    }
+    net_UDPConn_Close(&a);
+    net_UDPConn_Close(&b);
+    so_println("%s", "ok");
+}
+
+static void testUDP_ReadDeadline(void) {
+    so_print("%s", "- UDP read deadline...");
+    // A ReadFrom with a short deadline and no data must time out.
+    net_UDPAddrResult _res1 = net_ResolveUDPAddr(so_str("udp"), so_str("127.0.0.1:0"));
+    net_UDPAddr laddr = _res1.val;
+    so_Error err = _res1.err;
+    noError(err);
+    net_UDPConnResult _res2 = net_ListenUDP(so_str("udp"), &laddr);
+    net_UDPConn conn = _res2.val;
+    err = _res2.err;
+    noError(err);
+    noError(net_UDPConn_SetReadDeadline(&conn, time_Time_Add(time_Now(), 50 * time_Millisecond)));
+    so_byte buf[16] = {0};
+    {
+        net_UDPReadResult _res3 = net_UDPConn_ReadFrom(&conn, so_array_slice(so_byte, buf, 0, 16, 16));
+        so_Error err = _res3.err;
+        if (err.self != net_ErrTimeout.self) {
+            so_panic("expected timeout");
+        }
+    }
+    noError(net_UDPConn_Close(&conn));
+    so_println("%s", "ok");
+}
+
+static void testUDP_CloseErrors(void) {
+    so_print("%s", "- UDP close errors...");
+    // A double close, and any I/O after close, must report ErrClosed.
+    net_UDPAddrResult _res1 = net_ResolveUDPAddr(so_str("udp"), so_str("127.0.0.1:0"));
+    net_UDPAddr laddr = _res1.val;
+    so_Error err = _res1.err;
+    noError(err);
+    net_UDPConnResult _res2 = net_ListenUDP(so_str("udp"), &laddr);
+    net_UDPConn conn = _res2.val;
+    err = _res2.err;
+    noError(err);
+    noError(net_UDPConn_Close(&conn));
+    {
+        so_Error err = net_UDPConn_Close(&conn);
+        if (err.self != net_ErrClosed.self) {
+            so_panic("expected ErrClosed on double close");
+        }
+    }
+    so_byte buf[16] = {0};
+    {
+        net_UDPReadResult _res3 = net_UDPConn_ReadFrom(&conn, so_array_slice(so_byte, buf, 0, 16, 16));
+        so_Error err = _res3.err;
+        if (err.self != net_ErrClosed.self) {
+            so_panic("expected ErrClosed on ReadFrom after close");
+        }
+    }
+    {
+        so_R_int_err _res4 = net_UDPConn_WriteTo(&conn, so_array_slice(so_byte, buf, 0, 16, 16), &laddr);
+        so_Error err = _res4.err;
+        if (err.self != net_ErrClosed.self) {
+            so_panic("expected ErrClosed on WriteTo after close");
+        }
+    }
+    so_println("%s", "ok");
 }

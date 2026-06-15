@@ -11,36 +11,37 @@ func (stor *sockaddr_storage) sockAddr() *sockaddr {
 	return c.PtrAs[sockaddr](stor)
 }
 
-// tcpAddr decodes the sockaddr in stor into a TCPAddr.
-// Returns the zero TCPAddr if the family is not recognized.
-func (stor *sockaddr_storage) tcpAddr() TCPAddr {
+// addrPort decodes the sockaddr in stor into a netip.AddrPort.
+// If the family is not recognized, returns the zero AddrPort
+// (whose Addr is invalid).
+func (stor *sockaddr_storage) addrPort() netip.AddrPort {
 	base := stor.sockAddr()
 	if base.sa_family == c_AF_INET {
 		s4 := c.PtrAs[sockaddr_in](stor)
 		var ip [4]byte
 		mem.Copy(&ip[0], &s4.sin_addr, 4)
 		ipAddr := netip.AddrFromSlice(ip[:])
-		port := int(ntohs(s4.sin_port))
-		return TCPAddr{IP: ipAddr, Port: port}
+		port := ntohs(s4.sin_port)
+		return netip.AddrPortFrom(ipAddr, port)
 	}
 	if base.sa_family == c_AF_INET6 {
 		s6 := c.PtrAs[sockaddr_in6](stor)
 		var ip [16]byte
 		mem.Copy(&ip[0], &s6.sin6_addr, 16)
 		ipAddr := netip.AddrFromSlice(ip[:])
-		port := int(ntohs(s6.sin6_port))
-		return TCPAddr{IP: ipAddr, Port: port}
+		port := ntohs(s6.sin6_port)
+		return netip.AddrPortFrom(ipAddr, port)
 	}
-	return TCPAddr{}
+	return netip.AddrPort{}
 }
 
-// fill encodes addr into stor as a sockaddr_in or sockaddr_in6 and returns
-// its length. If addr's IP is invalid (neither IPv4 nor IPv6), fill does
+// fill encodes ap into stor as a sockaddr_in or sockaddr_in6 and returns
+// its length. If ap's IP is invalid (neither IPv4 nor IPv6), fill does
 // nothing and returns 0.
-func (stor *sockaddr_storage) fill(addr TCPAddr) c.UInt {
+func (stor *sockaddr_storage) fill(ap netip.AddrPort) c.UInt {
 	var ipbuf [16]byte
-	ip := addr.IP.AsSlice(ipbuf[:])
-	port := uint16(addr.Port)
+	ip := ap.Addr().AsSlice(ipbuf[:])
+	port := ap.Port()
 	mem.Clear(stor, c.Sizeof[sockaddr_storage]())
 	if len(ip) == 4 {
 		s4 := c.PtrAs[sockaddr_in](stor)

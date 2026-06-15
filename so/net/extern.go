@@ -37,6 +37,8 @@ const eCONNRESET = 0 // Connection reset by peer
 const eHOSTUNREACH = 0 // No route to host
 //so:extern EINTR
 const eINTR = 0 // Interrupted system call
+//so:extern EMSGSIZE
+const eMSGSIZE = 0 // Message too long
 //so:extern ENETUNREACH
 const eNETUNREACH = 0 // Network is unreachable
 //so:extern EPIPE
@@ -55,6 +57,8 @@ const c_AF_INET6 = 0 // IPv6
 
 //so:extern SOCK_STREAM
 const c_SOCK_STREAM = 0 // sequenced, reliable, two-way byte stream (TCP)
+//so:extern SOCK_DGRAM
+const c_SOCK_DGRAM = 0 // connectionless, unreliable datagrams (UDP)
 
 //so:extern SOL_SOCKET
 const c_SOL_SOCKET = 0 // socket-level option level for setsockopt
@@ -277,6 +281,26 @@ func fd_read(fd c.Int, buf *byte, nbyte uintptr) int {
 func fd_write(fd c.Int, buf *byte, nbyte uintptr) int {
 	_, _, _ = fd, buf, nbyte
 	return 0
+}
+
+// sendto sends a datagram on a socket. For a connectionless socket dest is the
+// destination address; for a connected socket dest may be nil. Returns the
+// number of bytes sent, or -1 on error.
+//
+//so:extern sendto
+func sendto(socket c.Int, buf *byte, length uintptr, flags c.Int, dest *sockaddr, dest_len c.UInt) int {
+	_, _, _, _, _, _ = socket, buf, length, flags, dest, dest_len
+	return -1
+}
+
+// recvfrom receives a datagram from a socket and, if address is non-nil, stores
+// the source address there. One whole datagram is returned; any excess beyond
+// length is discarded. Returns the number of bytes received, or -1 on error.
+//
+//so:extern recvfrom
+func recvfrom(socket c.Int, buf *byte, length uintptr, flags c.Int, address *sockaddr, address_len *c.UInt) int {
+	_, _, _, _, _, _ = socket, buf, length, flags, address, address_len
+	return -1
 }
 
 // close closes the file descriptor indicated by fd.

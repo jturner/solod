@@ -62,3 +62,61 @@ func ExampleListenTCP() {
 		conn.Close()
 	}
 }
+
+// Connect a UDP socket to a server, send a datagram, and read the reply.
+func ExampleDialUDP() {
+	// Resolve the server address. An IP literal needs no DNS lookup.
+	raddr, err := net.ResolveUDPAddr("udp", "127.0.0.1:8080")
+	if err != nil {
+		panic(err)
+	}
+
+	// Connect: fixes the peer so Read/Write can be used. A nil laddr lets the
+	// system choose the local address.
+	conn, err := net.DialUDP("udp", nil, &raddr)
+	if err != nil {
+		panic(err)
+	}
+	defer conn.Close()
+
+	// Send one datagram.
+	if _, err := conn.Write([]byte("ping")); err != nil {
+		panic(err)
+	}
+
+	// Read the reply datagram.
+	var buf [256]byte
+	n, err := conn.Read(buf[:])
+	if err != nil {
+		panic(err)
+	}
+	println(string(buf[:n]))
+}
+
+// Listen on a local UDP address and echo each datagram back to its sender.
+// An unconnected socket talks to many peers, so ReadFrom reports the source
+// address and WriteTo replies to it.
+func ExampleListenUDP() {
+	// Resolve the local address to listen on (IP literal, no DNS).
+	laddr, err := net.ResolveUDPAddr("udp", "127.0.0.1:8080")
+	if err != nil {
+		panic(err)
+	}
+
+	conn, err := net.ListenUDP("udp", &laddr)
+	if err != nil {
+		panic(err)
+	}
+	defer conn.Close()
+
+	for {
+		// Receive one datagram and learn who sent it.
+		var buf [256]byte
+		r, err := conn.ReadFrom(buf[:])
+		if err != nil {
+			panic(err)
+		}
+		// Echo it back to the sender.
+		conn.WriteTo(buf[:r.N], &r.Addr)
+	}
+}

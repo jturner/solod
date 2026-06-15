@@ -282,12 +282,13 @@ Types:
 
 ## [so/net](https://pkg.go.dev/solod.dev/so/net)
 
-Basic TCP networking. A small subset of Go's `net` package: only TCP is supported (networks `"tcp"`, `"tcp4"`, `"tcp6"`). There is no UDP, Unix socket, or concurrent server support.
+Basic TCP and UDP networking. There is no Unix socket or concurrent server support.
 
 Functions:
 
-- `ResolveTCPAddr` resolves a `host:port` string to a `TCPAddr`.
+- `ResolveTCPAddr` resolves a `host:port` string to a `TCPAddr`; `ResolveUDPAddr` does the same for a `UDPAddr`.
 - `DialTCP` connects to a TCP address; `ListenTCP` announces on a local one.
+- `DialUDP` creates a connected UDP socket (fixed peer, `Read`/`Write`); `ListenUDP` creates an unconnected one (any peer, `ReadFrom`/`WriteTo`).
 - `SplitHostPort` splits a `host:port` address into a `HostPort`; `JoinHostPort` does the reverse into a caller buffer.
 
 Types:
@@ -295,6 +296,8 @@ Types:
 - `TCPAddr` is the address of a TCP endpoint.
 - `TCPConn` is a TCP connection; implements `io.Reader` and `io.Writer`.
 - `TCPListener` is a TCP listener; its `Accept` method returns the next `TCPConn`.
+- `UDPAddr` is the address of a UDP endpoint.
+- `UDPConn` is a UDP socket; connected (`Read`/`Write`) or unconnected (`ReadFrom`/`WriteTo`).
 
 ## [so/net/netip](https://pkg.go.dev/solod.dev/so/net/netip)
 
