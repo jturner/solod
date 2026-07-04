@@ -4,6 +4,7 @@
 static void withDefer(void);
 static void allocTest(void);
 static void arenaTest(void);
+static void arrayTest(void);
 
 // -- alloc.go --
 
@@ -221,10 +222,45 @@ static void arenaTest(void) {
     }
 }
 
+// -- array.go --
+
+static void arrayTest(void) {
+    mem_Array arr = mem_NewArray(mem_System, c_Sizeof(main_Point), 3);
+    if (mem_Array_Len(&arr) != 3) {
+        so_panic("want arr.Len() == 3");
+    }
+    main_Point p = {0};
+    mem_Array_Load(&arr, 1, &p);
+    if (p.x != 0 || p.y != 0) {
+        so_panic("want arr[1] == {0, 0}");
+    }
+    main_Point p1 = (main_Point){.x = 11, .y = 22};
+    main_Point p2 = (main_Point){.x = 33, .y = 44};
+    main_Point p3 = (main_Point){.x = 55, .y = 66};
+    mem_Array_Store(&arr, 0, &p1);
+    mem_Array_Store(&arr, 1, &p2);
+    mem_Array_Store(&arr, 2, &p3);
+    mem_Array_Load(&arr, 0, &p);
+    if (p.x != 11 || p.y != 22) {
+        so_panic("want arr[0] == {11, 22}");
+    }
+    mem_Array_Load(&arr, 1, &p);
+    if (p.x != 33 || p.y != 44) {
+        so_panic("want arr[1] == {33, 44}");
+    }
+    // At returns a pointer into the storage.
+    main_Point* pp = (main_Point*)mem_Array_At(&arr, 2);
+    if (pp->x != 55 || pp->y != 66) {
+        so_panic("want arr[2] == {55, 66}");
+    }
+    mem_Array_Free(&arr);
+}
+
 // -- main.go --
 
 int main(void) {
     allocTest();
     arenaTest();
+    arrayTest();
     return 0;
 }

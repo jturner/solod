@@ -1,5 +1,6 @@
 #pragma once
 #include "so/builtin/builtin.h"
+#include "so/c/c.h"
 #include "so/mem/mem.h"
 
 // -- Types --

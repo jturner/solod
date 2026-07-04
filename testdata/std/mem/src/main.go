@@ -7,4 +7,5 @@ type Point struct {
 func main() {
 	allocTest()
 	arenaTest()
+	arrayTest()
 }
