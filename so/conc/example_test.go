@@ -39,20 +39,18 @@ func ExamplePool() {
 	}
 }
 
-// producer carries the channel to send on, the number of
-// values to produce, and the storage backing those values.
+// producer carries the channel to send on and the
+// number of values to produce.
 type producer struct {
-	ch   conc.Chan[int]
-	n    int
-	vals []int
+	ch conc.Chan[int]
+	n  int
 }
 
 // produce sends the numbers 0..n-1 on the channel, then closes it.
 func produce(arg any) any {
 	p := arg.(*producer)
 	for i := 0; i < p.n; i++ {
-		p.vals[i] = i
-		p.ch.Send(&p.vals[i])
+		p.ch.Send(i)
 	}
 	p.ch.Close()
 	return nil
@@ -65,16 +63,13 @@ func ExampleChan() {
 
 	// Run the producer on a single worker: it sends n
 	// values into the channel, then closes it.
-	prod := producer{ch: ch, n: n, vals: make([]int, n)}
+	prod := producer{ch: ch, n: n}
 	thr := conc.Go(produce, &prod, nil)
 	defer thr.Wait()
 
 	// Consume in the main thread until the channel is closed and drained.
-	for {
-		v, ok := ch.Recv()
-		if !ok {
-			break
-		}
-		fmt.Printf("received %d\n", *v)
+	var v int
+	for ch.Recv(&v) {
+		fmt.Printf("received %d\n", v)
 	}
 }

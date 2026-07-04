@@ -99,6 +99,10 @@ func NewPool(alloc mem.Allocator, opts PoolOpts) *Pool {
 // The worker invokes fn with the given arg; arg must point to storage that
 // outlives the task. If the queue is full, Go blocks until a slot frees.
 //
+// Unlike [Go], a pool task returns nothing: there is no join to retrieve a
+// value. Write results into the arg struct in place, and report errors via
+// an err field on it.
+//
 // Go is thread-safe.
 func (p *Pool) Go(fn func(any), arg any) {
 	p.mu.Lock()

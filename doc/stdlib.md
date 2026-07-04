@@ -120,13 +120,13 @@ Types:
 Basic primitives for concurrent programming, backed by pthreads.
 Meant to be used in place of language-level concurrency features.
 
-`Chan[T]` is a thread-safe FIFO channel, similar to Go's built-in `chan T`. It carries pointers (`*T`): a sender hands off ownership of an allocated value and a receiver takes it.
+`Chan[T]` is a thread-safe FIFO channel, similar to Go's built-in `chan T`. It carries values by copy: a sender copies a value into the channel and a receiver copies one out.
 
 - `NewChan[T]` creates a new channel, either buffered or unbuffered (rendezvous).
-- `Chan.Send` sends a pointer to the channel (blocks until delivered).
-- `Chan.Recv` receives a pointer from the channel (blocks until a value or close).
+- `Chan.Send` copies a value into the channel (blocks until delivered).
+- `Chan.Recv` copies a value out of the channel (blocks until a value or close).
 - `Chan.SendTimeout` sends with a deadline, returning a status; a zero duration makes it non-blocking.
-- `Chan.RecvTimeout` receives with a deadline, returning the pointer and a status; a zero duration makes it non-blocking.
+- `Chan.RecvTimeout` receives with a deadline, returning the value and a status; a zero duration makes it non-blocking.
 - `Chan.Close` closes the channel.
 - `Chan.Free` releases the channel's resources.
 

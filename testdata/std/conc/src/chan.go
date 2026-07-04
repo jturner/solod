@@ -19,18 +19,16 @@ func testChan() {
 }
 
 // Fills a buffered channel without blocking
-// and checks that pointers come back in FIFO order.
+// and checks that values come back in FIFO order.
 func testChan_Buffered() {
 	print("- chan buffered...")
-	vals := make([]int, 4)
 	ch := conc.NewChan[int](mem.System, 4)
-	for i := range vals {
-		vals[i] = i * 10
-		ch.Send(&vals[i])
+	for i := range 4 {
+		ch.Send(i * 10)
 	}
-	for i := range vals {
-		v, ok := ch.Recv()
-		if !ok || *v != i*10 {
+	var v int
+	for i := range 4 {
+		if !ch.Recv(&v) || v != i*10 {
 			panic("wrong buffered value")
 		}
 	}
@@ -44,15 +42,12 @@ type sumTask struct {
 	sum int
 }
 
-// consume receives pointers until the channel is closed and accumulates them.
+// consume receives values until the channel is closed and accumulates them.
 func consume(arg any) any {
 	task := arg.(*sumTask)
-	for {
-		v, ok := task.ch.Recv()
-		if !ok {
-			break
-		}
-		task.sum += *v
+	var v int
+	for task.ch.Recv(&v) {
+		task.sum += v
 	}
 	return nil
 }
@@ -62,13 +57,11 @@ func consume(arg any) any {
 func testChan_ProducerConsumer() {
 	print("- chan producer/consumer...")
 	const n = 1000
-	nums := make([]int, n)
 	task := sumTask{ch: conc.NewChan[int](mem.System, 8), sum: 0}
 
 	thr := conc.Go(consume, &task, nil)
-	for i := range nums {
-		nums[i] = i
-		task.ch.Send(&nums[i])
+	for i := range n {
+		task.ch.Send(i)
 	}
 	task.ch.Close()
 	thr.Wait()
@@ -83,16 +76,15 @@ func testChan_ProducerConsumer() {
 
 // seqTask for sending a sequence of values to a channel.
 type seqTask struct {
-	ch   conc.Chan[int]
-	nums []int
+	ch conc.Chan[int]
+	n  int
 }
 
-// produceSeq sends 0..9 to the channel and then closes it.
+// produceSeq sends 0..n-1 to the channel and then closes it.
 func produceSeq(arg any) any {
 	task := arg.(*seqTask)
-	for i := range task.nums {
-		task.nums[i] = i
-		task.ch.Send(&task.nums[i])
+	for i := 0; i < task.n; i++ {
+		task.ch.Send(i)
 	}
 	task.ch.Close()
 	return nil
@@ -102,16 +94,13 @@ func produceSeq(arg any) any {
 // and checks the handoff order.
 func testChan_Unbuffered() {
 	print("- chan unbuffered...")
-	task := seqTask{ch: conc.NewChan[int](mem.System, 0), nums: make([]int, 10)}
+	task := seqTask{ch: conc.NewChan[int](mem.System, 0), n: 10}
 
 	want := 0
 	thr := conc.Go(produceSeq, &task, nil)
-	for {
-		v, ok := task.ch.Recv()
-		if !ok {
-			break
-		}
-		if *v != want {
+	var v int
+	for task.ch.Recv(&v) {
+		if v != want {
 			panic("wrong unbuffered handoff order")
 		}
 		want++
@@ -130,15 +119,13 @@ type rangeTask struct {
 	ch   conc.Chan[int]
 	base int
 	n    int
-	vals []int
 }
 
 // produceRange sends base..base+n-1 to the channel.
 func produceRange(arg any) {
 	task := arg.(*rangeTask)
 	for i := 0; i < task.n; i++ {
-		task.vals[i] = task.base + i
-		task.ch.Send(&task.vals[i])
+		task.ch.Send(task.base + i)
 	}
 }
 
@@ -158,20 +145,20 @@ func testChan_UnbufferedMultiProducer() {
 
 	tasks := make([]rangeTask, producers)
 	for i := range tasks {
-		tasks[i] = rangeTask{ch: ch, base: i * perProducer, n: perProducer, vals: make([]int, perProducer)}
+		tasks[i] = rangeTask{ch: ch, base: i * perProducer, n: perProducer}
 		p.Go(produceRange, &tasks[i])
 	}
 
 	seen := make([]bool, total)
+	var v int
 	for range total {
-		v, ok := ch.Recv()
-		if !ok {
+		if !ch.Recv(&v) {
 			panic("unexpected close")
 		}
-		if *v < 0 || *v >= total || seen[*v] {
+		if v < 0 || v >= total || seen[v] {
 			panic("lost or duplicated unbuffered value")
 		}
-		seen[*v] = true
+		seen[v] = true
 	}
 	p.Free()
 	ch.Free()
@@ -182,21 +169,17 @@ func testChan_UnbufferedMultiProducer() {
 // before Recv reports the channel closed.
 func testChan_CloseDrain() {
 	print("- chan close drain...")
-	vals := []int{1, 2, 3}
 	ch := conc.NewChan[int](mem.System, 4)
-	for i := range vals {
-		ch.Send(&vals[i])
+	for i := 1; i <= 3; i++ {
+		ch.Send(i)
 	}
 	ch.Close()
 
 	seen := 0
 	want := 1
-	for {
-		v, ok := ch.Recv()
-		if !ok {
-			break
-		}
-		if *v != want {
+	var v int
+	for ch.Recv(&v) {
+		if v != want {
 			panic("wrong drained value")
 		}
 		want++
@@ -215,33 +198,31 @@ func testChan_CloseDrain() {
 // Closed.
 func testChan_TimeoutBuffered() {
 	print("- chan timeout buffered...")
-	vals := []int{10, 20, 30}
 	ch := conc.NewChan[int](mem.System, 2)
 
 	// The buffer holds 2; the third non-blocking send must time out.
-	if ch.SendTimeout(&vals[0], 0) != conc.Ok || ch.SendTimeout(&vals[1], 0) != conc.Ok {
+	if ch.SendTimeout(10, 0) != conc.Ok || ch.SendTimeout(20, 0) != conc.Ok {
 		panic("SendTimeout should succeed with room")
 	}
-	if ch.SendTimeout(&vals[2], 0) != conc.Timeout {
+	if ch.SendTimeout(30, 0) != conc.Timeout {
 		panic("SendTimeout should time out when full")
 	}
 
 	// Drain in FIFO order, then a non-blocking receive must time out.
-	v, st := ch.RecvTimeout(0)
-	if st != conc.Ok || *v != 10 {
+	var v int
+	if ch.RecvTimeout(&v, 0) != conc.Ok || v != 10 {
 		panic("wrong first RecvTimeout value")
 	}
-	v, st = ch.RecvTimeout(0)
-	if st != conc.Ok || *v != 20 {
+	if ch.RecvTimeout(&v, 0) != conc.Ok || v != 20 {
 		panic("wrong second RecvTimeout value")
 	}
-	if _, st = ch.RecvTimeout(0); st != conc.Timeout {
+	if ch.RecvTimeout(&v, 0) != conc.Timeout {
 		panic("RecvTimeout should time out when empty")
 	}
 
 	// After close with no buffered values, a receive reports Closed.
 	ch.Close()
-	if _, st = ch.RecvTimeout(0); st != conc.Closed {
+	if ch.RecvTimeout(&v, 0) != conc.Closed {
 		panic("RecvTimeout should report Closed")
 	}
 	ch.Free()
@@ -255,11 +236,11 @@ func testChan_TimeoutExpires() {
 	print("- chan timeout expires...")
 	ch := conc.NewChan[int](mem.System, 0)
 
-	x := 1
-	if ch.SendTimeout(&x, 10*time.Millisecond) != conc.Timeout {
+	if ch.SendTimeout(1, 10*time.Millisecond) != conc.Timeout {
 		panic("SendTimeout should time out with no receiver")
 	}
-	if _, st := ch.RecvTimeout(10 * time.Millisecond); st != conc.Timeout {
+	var v int
+	if ch.RecvTimeout(&v, 10*time.Millisecond) != conc.Timeout {
 		panic("RecvTimeout should time out with no sender")
 	}
 	ch.Free()
@@ -271,19 +252,20 @@ func testChan_TimeoutExpires() {
 // Closed, checking the handoff order.
 func testChan_TimeoutHandoff() {
 	print("- chan timeout handoff...")
-	task := seqTask{ch: conc.NewChan[int](mem.System, 0), nums: make([]int, 10)}
+	task := seqTask{ch: conc.NewChan[int](mem.System, 0), n: 10}
 
 	thr := conc.Go(produceSeq, &task, nil)
 	want := 0
+	var v int
 	for {
-		v, st := task.ch.RecvTimeout(50 * time.Millisecond)
+		st := task.ch.RecvTimeout(&v, 50*time.Millisecond)
 		if st == conc.Closed {
 			break
 		}
 		if st == conc.Timeout {
 			continue // no sender ready yet; keep polling
 		}
-		if *v != want {
+		if v != want {
 			panic("wrong timeout handoff order")
 		}
 		want++
@@ -302,13 +284,11 @@ func testChan_TimeoutHandoff() {
 func testChan_TimeoutSend() {
 	print("- chan timeout send...")
 	const n = 100
-	nums := make([]int, n)
 	task := sumTask{ch: conc.NewChan[int](mem.System, 0), sum: 0}
 
 	thr := conc.Go(consume, &task, nil)
-	for i := range nums {
-		nums[i] = i
-		for task.ch.SendTimeout(&nums[i], 50*time.Millisecond) != conc.Ok {
+	for i := range n {
+		for task.ch.SendTimeout(i, 50*time.Millisecond) != conc.Ok {
 			// No receiver ready yet; keep retrying.
 		}
 	}

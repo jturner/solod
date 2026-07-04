@@ -16,7 +16,7 @@ typedef struct sumTask {
 // seqTask for sending a sequence of values to a channel.
 typedef struct seqTask {
     conc_Chan ch;
-    so_Slice nums;
+    so_int n;
 } seqTask;
 
 // rangeTask for sending a range of values to a channel.
@@ -24,7 +24,6 @@ typedef struct rangeTask {
     conc_Chan ch;
     so_int base;
     so_int n;
-    so_Slice vals;
 } rangeTask;
 
 // latch lets a detached thread report completion, since it cannot be joined.
@@ -81,20 +80,16 @@ static void testChan(void) {
 }
 
 // Fills a buffered channel without blocking
-// and checks that pointers come back in FIFO order.
+// and checks that values come back in FIFO order.
 static void testChan_Buffered(void) {
     so_print("%s", "- chan buffered...");
-    so_Slice vals = so_make_slice(so_int, 4, 4);
     conc_Chan ch = conc_NewChan(so_int, (mem_System), (4));
-    for (so_int i = 0; i < so_len(vals); i++) {
-        so_at(so_int, vals, i) = i * 10;
-        conc_Chan_Send(so_int, (&ch), (&so_at(so_int, vals, i)));
+    for (so_int i = 0; i < 4; i++) {
+        conc_Chan_Send(so_int, (&ch), (i * 10));
     }
-    for (so_int i = 0; i < so_len(vals); i++) {
-        so_R_ptr_bool _res1 = conc_Chan_Recv(so_int, (&ch));
-        so_int* v = _res1.val;
-        bool ok = _res1.val2;
-        if (!ok || *v != i * 10) {
+    so_int v = 0;
+    for (so_int i = 0; i < 4; i++) {
+        if (!conc_Chan_Recv(so_int, (&ch), (&v)) || v != i * 10) {
             so_panic("wrong buffered value");
         }
     }
@@ -102,17 +97,12 @@ static void testChan_Buffered(void) {
     so_println("%s", "ok");
 }
 
-// consume receives pointers until the channel is closed and accumulates them.
+// consume receives values until the channel is closed and accumulates them.
 static void* consume(void* arg) {
     sumTask* task = (sumTask*)arg;
-    for (;;) {
-        so_R_ptr_bool _res1 = conc_Chan_Recv(so_int, (&task->ch));
-        so_int* v = _res1.val;
-        bool ok = _res1.val2;
-        if (!ok) {
-            break;
-        }
-        task->sum += *v;
+    so_int v = 0;
+    for (; conc_Chan_Recv(so_int, (&task->ch), (&v));) {
+        task->sum += v;
     }
     return NULL;
 }
@@ -122,12 +112,10 @@ static void* consume(void* arg) {
 static void testChan_ProducerConsumer(void) {
     so_print("%s", "- chan producer/consumer...");
     const int64_t n = 1000;
-    so_Slice nums = so_make_slice(so_int, n, n);
     sumTask task = (sumTask){.ch = conc_NewChan(so_int, (mem_System), (8)), .sum = 0};
     conc_Thread thr = conc_Go(consume, &task, NULL);
-    for (so_int i = 0; i < so_len(nums); i++) {
-        so_at(so_int, nums, i) = i;
-        conc_Chan_Send(so_int, (&task.ch), (&so_at(so_int, nums, i)));
+    for (so_int i = 0; i < n; i++) {
+        conc_Chan_Send(so_int, (&task.ch), (i));
     }
     conc_Chan_Close(so_int, (&task.ch));
     conc_Thread_Wait(thr);
@@ -139,12 +127,11 @@ static void testChan_ProducerConsumer(void) {
     so_println("%s", "ok");
 }
 
-// produceSeq sends 0..9 to the channel and then closes it.
+// produceSeq sends 0..n-1 to the channel and then closes it.
 static void* produceSeq(void* arg) {
     seqTask* task = (seqTask*)arg;
-    for (so_int i = 0; i < so_len(task->nums); i++) {
-        so_at(so_int, task->nums, i) = i;
-        conc_Chan_Send(so_int, (&task->ch), (&so_at(so_int, task->nums, i)));
+    for (so_int i = 0; i < task->n; i++) {
+        conc_Chan_Send(so_int, (&task->ch), (i));
     }
     conc_Chan_Close(so_int, (&task->ch));
     return NULL;
@@ -154,17 +141,12 @@ static void* produceSeq(void* arg) {
 // and checks the handoff order.
 static void testChan_Unbuffered(void) {
     so_print("%s", "- chan unbuffered...");
-    seqTask task = (seqTask){.ch = conc_NewChan(so_int, (mem_System), (0)), .nums = so_make_slice(so_int, 10, 10)};
+    seqTask task = (seqTask){.ch = conc_NewChan(so_int, (mem_System), (0)), .n = 10};
     so_int want = 0;
     conc_Thread thr = conc_Go(produceSeq, &task, NULL);
-    for (;;) {
-        so_R_ptr_bool _res1 = conc_Chan_Recv(so_int, (&task.ch));
-        so_int* v = _res1.val;
-        bool ok = _res1.val2;
-        if (!ok) {
-            break;
-        }
-        if (*v != want) {
+    so_int v = 0;
+    for (; conc_Chan_Recv(so_int, (&task.ch), (&v));) {
+        if (v != want) {
             so_panic("wrong unbuffered handoff order");
         }
         want++;
@@ -181,8 +163,7 @@ static void testChan_Unbuffered(void) {
 static void produceRange(void* arg) {
     rangeTask* task = (rangeTask*)arg;
     for (so_int i = 0; i < task->n; i++) {
-        so_at(so_int, task->vals, i) = task->base + i;
-        conc_Chan_Send(so_int, (&task->ch), (&so_at(so_int, task->vals, i)));
+        conc_Chan_Send(so_int, (&task->ch), (task->base + i));
     }
 }
 
@@ -200,21 +181,19 @@ static void testChan_UnbufferedMultiProducer(void) {
     conc_Pool* p = conc_NewPool(mem_System, opts);
     so_Slice tasks = so_make_slice(rangeTask, producers, producers);
     for (so_int i = 0; i < so_len(tasks); i++) {
-        so_at(rangeTask, tasks, i) = (rangeTask){.ch = ch, .base = i * perProducer, .n = perProducer, .vals = so_make_slice(so_int, perProducer, perProducer)};
+        so_at(rangeTask, tasks, i) = (rangeTask){.ch = ch, .base = i * perProducer, .n = perProducer};
         conc_Pool_Go(p, produceRange, &so_at(rangeTask, tasks, i));
     }
     so_Slice seen = so_make_slice(bool, total, total);
+    so_int v = 0;
     for (so_int _i = 0; _i < total; _i++) {
-        so_R_ptr_bool _res1 = conc_Chan_Recv(so_int, (&ch));
-        so_int* v = _res1.val;
-        bool ok = _res1.val2;
-        if (!ok) {
+        if (!conc_Chan_Recv(so_int, (&ch), (&v))) {
             so_panic("unexpected close");
         }
-        if (*v < 0 || *v >= total || so_at(bool, seen, *v)) {
+        if (v < 0 || v >= total || so_at(bool, seen, v)) {
             so_panic("lost or duplicated unbuffered value");
         }
-        so_at(bool, seen, *v) = true;
+        so_at(bool, seen, v) = true;
     }
     conc_Pool_Free(p);
     conc_Chan_Free(so_int, (&ch));
@@ -225,22 +204,16 @@ static void testChan_UnbufferedMultiProducer(void) {
 // before Recv reports the channel closed.
 static void testChan_CloseDrain(void) {
     so_print("%s", "- chan close drain...");
-    so_Slice vals = (so_Slice){(so_int[3]){1, 2, 3}, 3, 3};
     conc_Chan ch = conc_NewChan(so_int, (mem_System), (4));
-    for (so_int i = 0; i < so_len(vals); i++) {
-        conc_Chan_Send(so_int, (&ch), (&so_at(so_int, vals, i)));
+    for (so_int i = 1; i <= 3; i++) {
+        conc_Chan_Send(so_int, (&ch), (i));
     }
     conc_Chan_Close(so_int, (&ch));
     so_int seen = 0;
     so_int want = 1;
-    for (;;) {
-        so_R_ptr_bool _res1 = conc_Chan_Recv(so_int, (&ch));
-        so_int* v = _res1.val;
-        bool ok = _res1.val2;
-        if (!ok) {
-            break;
-        }
-        if (*v != want) {
+    so_int v = 0;
+    for (; conc_Chan_Recv(so_int, (&ch), (&v));) {
+        if (v != want) {
             so_panic("wrong drained value");
         }
         want++;
@@ -259,43 +232,29 @@ static void testChan_CloseDrain(void) {
 // Closed.
 static void testChan_TimeoutBuffered(void) {
     so_print("%s", "- chan timeout buffered...");
-    so_Slice vals = (so_Slice){(so_int[3]){10, 20, 30}, 3, 3};
     conc_Chan ch = conc_NewChan(so_int, (mem_System), (2));
     // The buffer holds 2; the third non-blocking send must time out.
-    if (conc_Chan_SendTimeout(so_int, (&ch), (&so_at(so_int, vals, 0)), (0)) != conc_Ok || conc_Chan_SendTimeout(so_int, (&ch), (&so_at(so_int, vals, 1)), (0)) != conc_Ok) {
+    if (conc_Chan_SendTimeout(so_int, (&ch), (10), (0)) != conc_Ok || conc_Chan_SendTimeout(so_int, (&ch), (20), (0)) != conc_Ok) {
         so_panic("SendTimeout should succeed with room");
     }
-    if (conc_Chan_SendTimeout(so_int, (&ch), (&so_at(so_int, vals, 2)), (0)) != conc_Timeout) {
+    if (conc_Chan_SendTimeout(so_int, (&ch), (30), (0)) != conc_Timeout) {
         so_panic("SendTimeout should time out when full");
     }
     // Drain in FIFO order, then a non-blocking receive must time out.
-    so_R_ptr_int _res1 = conc_Chan_RecvTimeout(so_int, (&ch), (0));
-    so_int* v = _res1.val;
-    conc_Status st = _res1.val2;
-    if (st != conc_Ok || *v != 10) {
+    so_int v = 0;
+    if (conc_Chan_RecvTimeout(so_int, (&ch), (&v), (0)) != conc_Ok || v != 10) {
         so_panic("wrong first RecvTimeout value");
     }
-    so_R_ptr_int _res2 = conc_Chan_RecvTimeout(so_int, (&ch), (0));
-    v = _res2.val;
-    st = _res2.val2;
-    if (st != conc_Ok || *v != 20) {
+    if (conc_Chan_RecvTimeout(so_int, (&ch), (&v), (0)) != conc_Ok || v != 20) {
         so_panic("wrong second RecvTimeout value");
     }
-    {
-        so_R_ptr_int _res3 = conc_Chan_RecvTimeout(so_int, (&ch), (0));
-        st = _res3.val2;
-        if (st != conc_Timeout) {
-            so_panic("RecvTimeout should time out when empty");
-        }
+    if (conc_Chan_RecvTimeout(so_int, (&ch), (&v), (0)) != conc_Timeout) {
+        so_panic("RecvTimeout should time out when empty");
     }
     // After close with no buffered values, a receive reports Closed.
     conc_Chan_Close(so_int, (&ch));
-    {
-        so_R_ptr_int _res4 = conc_Chan_RecvTimeout(so_int, (&ch), (0));
-        st = _res4.val2;
-        if (st != conc_Closed) {
-            so_panic("RecvTimeout should report Closed");
-        }
+    if (conc_Chan_RecvTimeout(so_int, (&ch), (&v), (0)) != conc_Closed) {
+        so_panic("RecvTimeout should report Closed");
     }
     conc_Chan_Free(so_int, (&ch));
     so_println("%s", "ok");
@@ -307,16 +266,12 @@ static void testChan_TimeoutBuffered(void) {
 static void testChan_TimeoutExpires(void) {
     so_print("%s", "- chan timeout expires...");
     conc_Chan ch = conc_NewChan(so_int, (mem_System), (0));
-    so_int x = 1;
-    if (conc_Chan_SendTimeout(so_int, (&ch), (&x), (10 * time_Millisecond)) != conc_Timeout) {
+    if (conc_Chan_SendTimeout(so_int, (&ch), (1), (10 * time_Millisecond)) != conc_Timeout) {
         so_panic("SendTimeout should time out with no receiver");
     }
-    {
-        so_R_ptr_int _res1 = conc_Chan_RecvTimeout(so_int, (&ch), (10 * time_Millisecond));
-        conc_Status st = _res1.val2;
-        if (st != conc_Timeout) {
-            so_panic("RecvTimeout should time out with no sender");
-        }
+    so_int v = 0;
+    if (conc_Chan_RecvTimeout(so_int, (&ch), (&v), (10 * time_Millisecond)) != conc_Timeout) {
+        so_panic("RecvTimeout should time out with no sender");
     }
     conc_Chan_Free(so_int, (&ch));
     so_println("%s", "ok");
@@ -327,13 +282,12 @@ static void testChan_TimeoutExpires(void) {
 // Closed, checking the handoff order.
 static void testChan_TimeoutHandoff(void) {
     so_print("%s", "- chan timeout handoff...");
-    seqTask task = (seqTask){.ch = conc_NewChan(so_int, (mem_System), (0)), .nums = so_make_slice(so_int, 10, 10)};
+    seqTask task = (seqTask){.ch = conc_NewChan(so_int, (mem_System), (0)), .n = 10};
     conc_Thread thr = conc_Go(produceSeq, &task, NULL);
     so_int want = 0;
+    so_int v = 0;
     for (;;) {
-        so_R_ptr_int _res1 = conc_Chan_RecvTimeout(so_int, (&task.ch), (50 * time_Millisecond));
-        so_int* v = _res1.val;
-        conc_Status st = _res1.val2;
+        conc_Status st = conc_Chan_RecvTimeout(so_int, (&task.ch), (&v), (50 * time_Millisecond));
         if (st == conc_Closed) {
             break;
         }
@@ -341,7 +295,7 @@ static void testChan_TimeoutHandoff(void) {
             // no sender ready yet; keep polling
             continue;
         }
-        if (*v != want) {
+        if (v != want) {
             so_panic("wrong timeout handoff order");
         }
         want++;
@@ -359,12 +313,10 @@ static void testChan_TimeoutHandoff(void) {
 static void testChan_TimeoutSend(void) {
     so_print("%s", "- chan timeout send...");
     const int64_t n = 100;
-    so_Slice nums = so_make_slice(so_int, n, n);
     sumTask task = (sumTask){.ch = conc_NewChan(so_int, (mem_System), (0)), .sum = 0};
     conc_Thread thr = conc_Go(consume, &task, NULL);
-    for (so_int i = 0; i < so_len(nums); i++) {
-        so_at(so_int, nums, i) = i;
-        for (; conc_Chan_SendTimeout(so_int, (&task.ch), (&so_at(so_int, nums, i)), (50 * time_Millisecond)) != conc_Ok;) {
+    for (so_int i = 0; i < n; i++) {
+        for (; conc_Chan_SendTimeout(so_int, (&task.ch), (i), (50 * time_Millisecond)) != conc_Ok;) {
         }
     }
     // No receiver ready yet; keep retrying.
