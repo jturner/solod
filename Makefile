@@ -81,10 +81,10 @@ update-dst:
 	cp generated/$(name)/main.* testdata/$(name)/dst
 	go test -run TestTranslate/$(name) ./internal/compiler
 
-# Runs tests in every testdata/lang/* subdirectory.
+# Runs tests in every testdata/* subdirectory.
 test-lang:
 	@failed=0; \
-	for dir in $$(ls -d testdata/lang/*/); do \
+	for dir in $$(ls -d testdata/*/); do \
 		name=$${dir#testdata/}; \
 		name=$${name%/}; \
 		if make run-case name=$$name > /tmp/so_test_out.txt 2>&1; then \

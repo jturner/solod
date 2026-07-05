@@ -9,10 +9,16 @@ import (
 var main_h string
 
 //so:extern
-func isalpha(ch int32) bool
+func isalpha(ch int32) bool {
+	_ = ch
+	return false
+}
 
 //so:extern
-func get_cstring(s string) *c.ConstChar
+func get_cstring(s string) *c.ConstChar {
+	_ = s
+	return nil
+}
 
 func TestString(t *testing.T) {
 	cstr := get_cstring("Hello, C!")

@@ -11,7 +11,7 @@ import (
 )
 
 func TestTranslate(t *testing.T) {
-	testDirs, err := filepath.Glob("../../testdata/*/*")
+	testDirs, err := filepath.Glob("../../testdata/*")
 	be.Err(t, err, nil)
 
 	for _, testDir := range testDirs {
@@ -19,7 +19,7 @@ func TestTranslate(t *testing.T) {
 			continue
 		}
 		parts := strings.Split(testDir, string(filepath.Separator))
-		name := strings.Join(parts[len(parts)-2:], "/")
+		name := parts[len(parts)-1]
 		t.Run(name, func(t *testing.T) {
 			testPackage(t, testDir)
 		})
@@ -87,7 +87,7 @@ func assertFile(t *testing.T, dir, path, tempOut string, d fs.DirEntry, err erro
 }
 
 func TestTrackSource(t *testing.T) {
-	srcDir := "../../testdata/lang/panic/src"
+	srcDir := "../../testdata/panic/src"
 	tempOut, err := os.MkdirTemp("", "so_tracksource")
 	be.Err(t, err, nil)
 	defer os.RemoveAll(tempOut)

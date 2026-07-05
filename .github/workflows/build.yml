@@ -41,6 +41,9 @@ jobs:
             - run: make test-lang
               if: runner.os != 'Windows'
 
+            - run: make test-std
+              if: runner.os != 'Windows'
+
             # mingw gcc lacks the sanitizers in the default CFLAGS.
             - run: make test-lang CFLAGS="-O1 -g -std=gnu11 -Wall -Wextra -Werror -Wno-shadow -Wno-unused-label"
               if: runner.os == 'Windows'
