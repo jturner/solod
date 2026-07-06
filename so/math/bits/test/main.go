@@ -7,14 +7,14 @@ import "solod.dev/so/testing"
 func main() {
 	testing.RunTests("so/math/bits", []testing.Test{
 		{Name: "TestAdd32", F: TestAdd32},
-		{Name: "TestLeadingZeros8", F: TestLeadingZeros8},
-		{Name: "TestLen8", F: TestLen8},
+		{Name: "TestSub32", F: TestSub32},
 		{Name: "TestMul32", F: TestMul32},
+		{Name: "TestLeadingZeros8", F: TestLeadingZeros8},
+		{Name: "TestTrailingZeros8", F: TestTrailingZeros8},
 		{Name: "TestOnesCount", F: TestOnesCount},
+		{Name: "TestRotateLeft8", F: TestRotateLeft8},
 		{Name: "TestReverse8", F: TestReverse8},
 		{Name: "TestReverseBytes16", F: TestReverseBytes16},
-		{Name: "TestRotateLeft8", F: TestRotateLeft8},
-		{Name: "TestSub32", F: TestSub32},
-		{Name: "TestTrailingZeros8", F: TestTrailingZeros8},
+		{Name: "TestLen8", F: TestLen8},
 	})
 }

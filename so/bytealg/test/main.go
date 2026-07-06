@@ -9,9 +9,9 @@ func main() {
 		{Name: "TestCompare", F: TestCompare},
 		{Name: "TestCount", F: TestCount},
 		{Name: "TestEqual", F: TestEqual},
-		{Name: "TestIndexByte", F: TestIndexByte},
 		{Name: "TestIndexRabinKarp", F: TestIndexRabinKarp},
-		{Name: "TestLastIndexByte", F: TestLastIndexByte},
 		{Name: "TestLastIndexRabinKarp", F: TestLastIndexRabinKarp},
+		{Name: "TestIndexByte", F: TestIndexByte},
+		{Name: "TestLastIndexByte", F: TestLastIndexByte},
 	})
 }

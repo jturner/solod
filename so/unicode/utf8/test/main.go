@@ -6,7 +6,6 @@ import "solod.dev/so/testing"
 
 func main() {
 	testing.RunTests("so/unicode/utf8", []testing.Test{
-		{Name: "TestAppendRune", F: TestAppendRune},
 		{Name: "TestDecodeLastRune", F: TestDecodeLastRune},
 		{Name: "TestDecodeLastRuneInString", F: TestDecodeLastRuneInString},
 		{Name: "TestDecodeRune", F: TestDecodeRune},
@@ -16,5 +15,6 @@ func main() {
 		{Name: "TestRuneCountInString", F: TestRuneCountInString},
 		{Name: "TestRuneLen", F: TestRuneLen},
 		{Name: "TestValidString", F: TestValidString},
+		{Name: "TestAppendRune", F: TestAppendRune},
 	})
 }

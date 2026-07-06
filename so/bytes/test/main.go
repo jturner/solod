@@ -6,27 +6,27 @@ import "solod.dev/so/testing"
 
 func main() {
 	testing.RunTests("so/bytes", []testing.Test{
-		{Name: "TestBuffer_Heap", F: TestBuffer_Heap},
 		{Name: "TestBuffer_Stack", F: TestBuffer_Stack},
+		{Name: "TestBuffer_Heap", F: TestBuffer_Heap},
 		{Name: "TestClone", F: TestClone},
 		{Name: "TestCompare", F: TestCompare},
+		{Name: "TestEqual", F: TestEqual},
 		{Name: "TestContains", F: TestContains},
 		{Name: "TestCount", F: TestCount},
 		{Name: "TestCut", F: TestCut},
-		{Name: "TestEqual", F: TestEqual},
 		{Name: "TestHasPrefix", F: TestHasPrefix},
 		{Name: "TestHasSuffix", F: TestHasSuffix},
 		{Name: "TestIndex", F: TestIndex},
 		{Name: "TestJoin", F: TestJoin},
 		{Name: "TestMap", F: TestMap},
-		{Name: "TestReader_Read", F: TestReader_Read},
 		{Name: "TestRepeat", F: TestRepeat},
 		{Name: "TestReplace", F: TestReplace},
 		{Name: "TestRunes", F: TestRunes},
 		{Name: "TestSplit", F: TestSplit},
-		{Name: "TestToLower", F: TestToLower},
-		{Name: "TestToUpper", F: TestToUpper},
 		{Name: "TestTrim", F: TestTrim},
 		{Name: "TestTrimPrefix", F: TestTrimPrefix},
+		{Name: "TestToLower", F: TestToLower},
+		{Name: "TestToUpper", F: TestToUpper},
+		{Name: "TestReader_Read", F: TestReader_Read},
 	})
 }

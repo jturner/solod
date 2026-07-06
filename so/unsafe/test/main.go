@@ -6,12 +6,12 @@ import "solod.dev/so/testing"
 
 func main() {
 	testing.RunTests("so/unsafe", []testing.Test{
-		{Name: "TestAlignof", F: TestAlignof},
-		{Name: "TestPointer", F: TestPointer},
 		{Name: "TestSizeof", F: TestSizeof},
-		{Name: "TestSlice", F: TestSlice},
-		{Name: "TestSliceData", F: TestSliceData},
+		{Name: "TestAlignof", F: TestAlignof},
 		{Name: "TestString", F: TestString},
 		{Name: "TestStringData", F: TestStringData},
+		{Name: "TestSlice", F: TestSlice},
+		{Name: "TestSliceData", F: TestSliceData},
+		{Name: "TestPointer", F: TestPointer},
 	})
 }

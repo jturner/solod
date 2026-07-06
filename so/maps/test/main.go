@@ -6,15 +6,15 @@ import "solod.dev/so/testing"
 
 func main() {
 	testing.RunTests("so/maps", []testing.Test{
-		{Name: "TestDelete", F: TestDelete},
-		{Name: "TestGrow", F: TestGrow},
-		{Name: "TestHas", F: TestHas},
 		{Name: "TestIter", F: TestIter},
 		{Name: "TestIter_Empty", F: TestIter_Empty},
-		{Name: "TestMissing", F: TestMissing},
-		{Name: "TestOverwrite", F: TestOverwrite},
-		{Name: "TestReturnMap", F: TestReturnMap},
 		{Name: "TestSetGet", F: TestSetGet},
 		{Name: "TestStringValues", F: TestStringValues},
+		{Name: "TestHas", F: TestHas},
+		{Name: "TestDelete", F: TestDelete},
+		{Name: "TestOverwrite", F: TestOverwrite},
+		{Name: "TestMissing", F: TestMissing},
+		{Name: "TestGrow", F: TestGrow},
+		{Name: "TestReturnMap", F: TestReturnMap},
 	})
 }

@@ -7,20 +7,20 @@ import "solod.dev/so/testing"
 func main() {
 	testing.RunTests("so/conc", []testing.Test{
 		{Name: "TestChan_Buffered", F: TestChan_Buffered},
-		{Name: "TestChan_CloseDrain", F: TestChan_CloseDrain},
 		{Name: "TestChan_ProducerConsumer", F: TestChan_ProducerConsumer},
+		{Name: "TestChan_Unbuffered", F: TestChan_Unbuffered},
+		{Name: "TestChan_UnbufferedMultiProducer", F: TestChan_UnbufferedMultiProducer},
+		{Name: "TestChan_CloseDrain", F: TestChan_CloseDrain},
 		{Name: "TestChan_TimeoutBuffered", F: TestChan_TimeoutBuffered},
 		{Name: "TestChan_TimeoutExpires", F: TestChan_TimeoutExpires},
 		{Name: "TestChan_TimeoutHandoff", F: TestChan_TimeoutHandoff},
 		{Name: "TestChan_TimeoutSend", F: TestChan_TimeoutSend},
-		{Name: "TestChan_Unbuffered", F: TestChan_Unbuffered},
-		{Name: "TestChan_UnbufferedMultiProducer", F: TestChan_UnbufferedMultiProducer},
-		{Name: "TestPool_BackPressure", F: TestPool_BackPressure},
-		{Name: "TestPool_Error", F: TestPool_Error},
 		{Name: "TestPool_ParallelMap", F: TestPool_ParallelMap},
+		{Name: "TestPool_BackPressure", F: TestPool_BackPressure},
 		{Name: "TestPool_QueueLarge", F: TestPool_QueueLarge},
 		{Name: "TestPool_QueueOne", F: TestPool_QueueOne},
-		{Name: "TestThread_Detach", F: TestThread_Detach},
+		{Name: "TestPool_Error", F: TestPool_Error},
 		{Name: "TestThread_Wait", F: TestThread_Wait},
+		{Name: "TestThread_Detach", F: TestThread_Detach},
 	})
 }

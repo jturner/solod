@@ -6,8 +6,8 @@ import "solod.dev/so/testing"
 
 func main() {
 	testing.RunTests("so/uuid", []testing.Test{
-		{Name: "TestCompare", F: TestCompare},
 		{Name: "TestNew", F: TestNew},
 		{Name: "TestStringParse", F: TestStringParse},
+		{Name: "TestCompare", F: TestCompare},
 	})
 }

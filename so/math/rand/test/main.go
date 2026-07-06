@@ -6,8 +6,8 @@ import "solod.dev/so/testing"
 
 func main() {
 	testing.RunTests("so/math/rand", []testing.Test{
+		{Name: "TestInt", F: TestInt},
 		{Name: "TestFloat64", F: TestFloat64},
 		{Name: "TestGlobal", F: TestGlobal},
-		{Name: "TestInt", F: TestInt},
 	})
 }

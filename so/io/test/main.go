@@ -8,9 +8,9 @@ func main() {
 	testing.RunTests("so/io", []testing.Test{
 		{Name: "TestCopy", F: TestCopy},
 		{Name: "TestCopyN", F: TestCopyN},
-		{Name: "TestLimitReader", F: TestLimitReader},
 		{Name: "TestReadAll", F: TestReadAll},
 		{Name: "TestReadFull", F: TestReadFull},
 		{Name: "TestWriteString", F: TestWriteString},
+		{Name: "TestLimitReader", F: TestLimitReader},
 	})
 }

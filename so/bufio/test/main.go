@@ -6,9 +6,9 @@ import "solod.dev/so/testing"
 
 func main() {
 	testing.RunTests("so/bufio", []testing.Test{
-		{Name: "TestReader_Peek", F: TestReader_Peek},
-		{Name: "TestReader_ReadByte", F: TestReader_ReadByte},
 		{Name: "TestReader_ReadString", F: TestReader_ReadString},
+		{Name: "TestReader_ReadByte", F: TestReader_ReadByte},
+		{Name: "TestReader_Peek", F: TestReader_Peek},
 		{Name: "TestScanner", F: TestScanner},
 		{Name: "TestWriter_WriteRune", F: TestWriter_WriteRune},
 	})

@@ -6,11 +6,11 @@ import "solod.dev/so/testing"
 
 func main() {
 	testing.RunTests("so/c", []testing.Test{
-		{Name: "TestCString", F: TestCString},
-		{Name: "TestExtern", F: TestExtern},
-		{Name: "TestNumericTypes", F: TestNumericTypes},
-		{Name: "TestRaw", F: TestRaw},
 		{Name: "TestString", F: TestString},
+		{Name: "TestExtern", F: TestExtern},
 		{Name: "TestVal", F: TestVal},
+		{Name: "TestRaw", F: TestRaw},
+		{Name: "TestCString", F: TestCString},
+		{Name: "TestNumericTypes", F: TestNumericTypes},
 	})
 }

@@ -6,8 +6,8 @@ import "solod.dev/so/testing"
 
 func main() {
 	testing.RunTests("so/runtime", []testing.Test{
-		{Name: "TestGOARCH", F: TestGOARCH},
-		{Name: "TestGOOS", F: TestGOOS},
 		{Name: "TestVersion", F: TestVersion},
+		{Name: "TestGOOS", F: TestGOOS},
+		{Name: "TestGOARCH", F: TestGOARCH},
 	})
 }

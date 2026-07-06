@@ -6,19 +6,19 @@ import "solod.dev/so/testing"
 
 func main() {
 	testing.RunTests("so/mem", []testing.Test{
+		{Name: "TestTryAlloc", F: TestTryAlloc},
+		{Name: "TestTryAllocSlice", F: TestTryAllocSlice},
 		{Name: "TestAlloc", F: TestAlloc},
 		{Name: "TestAllocDefault", F: TestAllocDefault},
 		{Name: "TestAllocSlice", F: TestAllocSlice},
 		{Name: "TestAllocSliceDefault", F: TestAllocSliceDefault},
-		{Name: "TestArena", F: TestArena},
-		{Name: "TestArray", F: TestArray},
-		{Name: "TestFreeNil", F: TestFreeNil},
-		{Name: "TestFreeString", F: TestFreeString},
+		{Name: "TestTryReallocSlice", F: TestTryReallocSlice},
 		{Name: "TestReallocSlice", F: TestReallocSlice},
 		{Name: "TestReallocSlice_Empty", F: TestReallocSlice_Empty},
+		{Name: "TestFreeNil", F: TestFreeNil},
+		{Name: "TestFreeString", F: TestFreeString},
 		{Name: "TestTracker", F: TestTracker},
-		{Name: "TestTryAlloc", F: TestTryAlloc},
-		{Name: "TestTryAllocSlice", F: TestTryAllocSlice},
-		{Name: "TestTryReallocSlice", F: TestTryReallocSlice},
+		{Name: "TestArena", F: TestArena},
+		{Name: "TestArray", F: TestArray},
 	})
 }

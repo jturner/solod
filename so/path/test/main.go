@@ -6,13 +6,13 @@ import "solod.dev/so/testing"
 
 func main() {
 	testing.RunTests("so/path", []testing.Test{
-		{Name: "TestBase", F: TestBase},
 		{Name: "TestClean", F: TestClean},
-		{Name: "TestDir", F: TestDir},
-		{Name: "TestExt", F: TestExt},
-		{Name: "TestIsAbs", F: TestIsAbs},
-		{Name: "TestJoin", F: TestJoin},
-		{Name: "TestMatch", F: TestMatch},
 		{Name: "TestSplit", F: TestSplit},
+		{Name: "TestJoin", F: TestJoin},
+		{Name: "TestIsAbs", F: TestIsAbs},
+		{Name: "TestDir", F: TestDir},
+		{Name: "TestBase", F: TestBase},
+		{Name: "TestExt", F: TestExt},
+		{Name: "TestMatch", F: TestMatch},
 	})
 }

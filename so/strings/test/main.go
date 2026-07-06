@@ -6,18 +6,18 @@ import "solod.dev/so/testing"
 
 func main() {
 	testing.RunTests("so/strings", []testing.Test{
-		{Name: "TestBuilder", F: TestBuilder},
 		{Name: "TestClone", F: TestClone},
 		{Name: "TestCompare", F: TestCompare},
 		{Name: "TestCount", F: TestCount},
 		{Name: "TestCut", F: TestCut},
 		{Name: "TestCutPrefixSuffix", F: TestCutPrefixSuffix},
 		{Name: "TestIndex", F: TestIndex},
-		{Name: "TestReader", F: TestReader},
 		{Name: "TestRepeat", F: TestRepeat},
 		{Name: "TestReplace", F: TestReplace},
 		{Name: "TestSplitJoin", F: TestSplitJoin},
 		{Name: "TestToUpperLower", F: TestToUpperLower},
 		{Name: "TestTrim", F: TestTrim},
+		{Name: "TestBuilder", F: TestBuilder},
+		{Name: "TestReader", F: TestReader},
 	})
 }

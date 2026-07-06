@@ -6,12 +6,12 @@ import "solod.dev/so/testing"
 
 func main() {
 	testing.RunTests("so/fmt", []testing.Test{
-		{Name: "TestFprintf", F: TestFprintf},
-		{Name: "TestFscanf", F: TestFscanf},
 		{Name: "TestPrint", F: TestPrint},
-		{Name: "TestPrintf", F: TestPrintf},
 		{Name: "TestPrintln", F: TestPrintln},
+		{Name: "TestPrintf", F: TestPrintf},
 		{Name: "TestSprintf", F: TestSprintf},
+		{Name: "TestFprintf", F: TestFprintf},
 		{Name: "TestSscanf", F: TestSscanf},
+		{Name: "TestFscanf", F: TestFscanf},
 	})
 }
