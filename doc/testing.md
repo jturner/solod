@@ -137,6 +137,42 @@ The generated runner always uses the system allocator (`mem.System`). If a
 benchmark needs a different allocator, maintain `bench/main.go` yourself (it
 calls `testing.RunBenchmarks`) and run it with `so run` instead of `so bench`.
 
+### Keeping the measured code alive
+
+Unlike Go, So's `b.Loop` doesn't automatically keep the loop body alive. If you
+compile the benchmarks to C with aggressive optimization (`-Ofast -flto`), the
+compiler can remove any work whose result isn't used. A clear sign of this is
+seeing an unrealistically low time, like `0.3 ns/op`, for something that should
+take longer.
+
+If the code returns a value, assign it to a package-level `//so:volatile` sink:
+
+```go
+//so:volatile
+var sink int
+
+func BenchmarkGet(b *testing.B) {
+	m := buildMap()
+	for b.Loop() {
+		sink = m.Get(42)
+	}
+}
+```
+
+For work with no result to consume, such as a method with no return value, pass
+the object's address to `testing.Keep`. It is a compiler barrier that emits no
+instructions:
+
+```go
+func BenchmarkStore(b *testing.B) {
+	var x atomic.Uint64
+	for b.Loop() {
+		x.Store(1)
+		testing.Keep(&x)
+	}
+}
+```
+
 ### Comparing against Go
 
 `so bench` (and `so test`) ignore `_test.go` files. This lets you drop native

@@ -311,13 +311,16 @@ func (b *B) loopSlowPath() bool {
 // toward the benchmark measurement. Likewise, when it returns false, it stops
 // the timer so cleanup code is not measured.
 //
-// Within the body of a "for b.Loop() { ... }" loop, arguments to and
-// results from function calls and assigned variables within the loop are kept
-// alive, preventing the compiler from fully optimizing away the loop body.
-// Currently, this is implemented as a compiler transformation that wraps such
-// variables with a runtime.KeepAlive intrinsic call. This applies only to
-// statements syntactically between the curly braces of the loop, and the loop
-// condition must be written exactly as "b.Loop()".
+// Unlike Go, Solod does not automatically keep the loop body's values alive, so
+// the C optimizer may delete measured work whose result is unused (for example
+// a void method, or a computation whose return value is discarded). Assign the
+// result to a package-level //so:volatile sink, or pass the value's address to
+// [Keep], to force the work to run:
+//
+//	for b.Loop() {
+//		x.Store(1)
+//		testing.Keep(&x)
+//	}
 //
 // After Loop returns false, b.N contains the total number of iterations that
 // ran, so the benchmark may use b.N to compute other average metrics.

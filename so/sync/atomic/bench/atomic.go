@@ -10,9 +10,6 @@ import (
 //so:volatile
 var sinkUint uint64
 
-//so:volatile
-var sink atomic.Uint64
-
 func BenchmarkAtomicLoad64_So(b *testing.B) {
 	var x atomic.Uint64
 	x.Store(42)
@@ -25,7 +22,7 @@ func BenchmarkAtomicStore64_So(b *testing.B) {
 	var x atomic.Uint64
 	for b.Loop() {
 		x.Store(1)
-		sink = x
+		testing.Keep(&x)
 	}
 }
 
@@ -33,7 +30,7 @@ func BenchmarkAtomicAdd64_So(b *testing.B) {
 	var x atomic.Uint64
 	for b.Loop() {
 		x.Add(1)
-		sink = x
+		testing.Keep(&x)
 	}
 }
 
@@ -50,7 +47,7 @@ func BenchmarkAtomicCAS64_So(b *testing.B) {
 	for b.Loop() {
 		x.CompareAndSwap(1, 0)
 		x.CompareAndSwap(0, 1)
-		sink = x
+		testing.Keep(&x)
 	}
 }
 
