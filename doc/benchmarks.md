@@ -305,10 +305,10 @@ Apple M1 • Go 1.26.1
 ## Synchronization
 
 So's synchronization primitives are built on POSIX threads: `Mutex` and `Cond`
-wrap a pthread mutex and condition variable. The mutex is faster than Go's, but
-`Cond` and `Once` are slower - `Cond` because it parks threads in the kernel
-instead of a user-space scheduler, and `Once` because `Do` locks the mutex on
-every call (there is no lock-free fast path yet).
+wrap a pthread mutex and condition variable. The mutex is faster than Go's.
+`Cond` is slower because it parks threads in the kernel instead of a user-space
+scheduler. `Once` takes a lock-free atomic fast path, so uncontended it is close
+to Go; under contention it inherits the same kernel dispatch cost as `Cond`.
 
 The contended benchmarks run 8 worker threads that share one primitive, using a
 persistent thread pool on the So side and an equivalent persistent goroutine pool
@@ -341,16 +341,16 @@ are per 1000 rendezvous rounds.
 
 ### Once
 
-Uncontended, So's `Do` is ~4x slower than Go because it takes the mutex every
-time instead of a lock-free atomic check. Under contention the gap widens
-sharply: the workers serialize on the mutex (the So figure matches the plain
-contended mutex), while Go's fast path stays lock-free and scales. Both will
-improve once So gains atomics.
+So's `Do` takes a lock-free atomic fast path: once the initializer has run,
+every call is just an atomic load. Uncontended, both sides do that single load
+and land within ~1.2x of each other. Under contention the gap is because of
+`conc.Pool` dispatch: waking the eight workers crosses into the kernel, the
+same cost that makes `Cond` slow, rather than anything in `Once`.
 
 | Benchmark             |    Go |    So | Winner     |
 | --------------------- | ----: | ----: | ---------- |
-| Uncontended           | 2.1ns | 8.6ns | Go - 0.24x |
-| Contended (8 threads) | 5.9µs | 205µs | Go - 0.03x |
+| Uncontended           | 2.1ns | 2.6ns | Go - 0.8x  |
+| Contended (8 threads) | 6.0µs |  32µs | Go - 0.18x |
 
 ### Atomic
 

@@ -1,5 +1,7 @@
 package sync
 
+import "solod.dev/so/sync/atomic"
+
 // Once runs a function exactly once, even when Do
 // is called concurrently from multiple threads.
 //
@@ -7,14 +9,14 @@ package sync
 // A Once must not be copied after Init.
 type Once struct {
 	mu   Mutex
-	done bool
+	done atomic.Bool
 }
 
 // Init prepares o for use. It must be called exactly once before
 // any other method. A Once must not be copied after Init.
 func (o *Once) Init() {
 	o.mu.Init()
-	o.done = false
+	o.done.Store(false)
 }
 
 // Do calls f if and only if Do is being called for the first time for this o.
@@ -24,10 +26,13 @@ func (o *Once) Init() {
 // Because no call to Do returns until the one call to f returns,
 // f must not call Do on the same o, or it will deadlock.
 func (o *Once) Do(f func()) {
+	if o.done.Load() {
+		return
+	}
 	o.mu.Lock()
-	if !o.done {
+	if !o.done.Load() {
 		f()
-		o.done = true
+		o.done.Store(true)
 	}
 	o.mu.Unlock()
 }
