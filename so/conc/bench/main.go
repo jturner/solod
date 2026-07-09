@@ -9,6 +9,10 @@ import (
 
 func main() {
 	testing.RunBenchmarks(mem.System, "so/conc", []testing.Benchmark{
+		{Name: "BenchmarkChanUncontended_So", F: BenchmarkChanUncontended_So},
+		{Name: "BenchmarkChanProdCons0_So", F: BenchmarkChanProdCons0_So},
+		{Name: "BenchmarkChanProdCons10_So", F: BenchmarkChanProdCons10_So},
+		{Name: "BenchmarkChanProdCons100_So", F: BenchmarkChanProdCons100_So},
 		{Name: "BenchmarkPoolCPU_So", F: BenchmarkPoolCPU_So},
 		{Name: "BenchmarkPoolIO_So", F: BenchmarkPoolIO_So},
 	})

@@ -70,6 +70,8 @@ Apple M1 • Go 1.26.1
 
 ## Concurrency
 
+### Pool
+
 `conc.Pool` is a fixed set of worker threads draining a shared task queue, built
 on So's `Mutex` and `Cond`. Each dispatch crosses into the kernel to wake a
 worker (see [Cond](#cond)), so the pool suits coarse-grained tasks: on realistic
@@ -89,6 +91,29 @@ For CPU-bound work So's faster compute nearly offsets its heavier dispatch; for
 IO-bound work the dispatch cost hides behind the blocking waits. Note the pool
 is capped at `NumThreads` OS threads, so unlike Go's goroutines it cannot fan a
 single batch out to thousands of concurrent IO waits.
+
+### Channels
+
+`conc.Chan` is a mutex+cond ring buffer when buffered and a rendezvous when
+unbuffered. Every blocking cross-thread transfer requires a kernel wakeup,
+while Go handles channel wakeups in user space. Because of this, So falls
+behind Go when threads actually hand off work.
+
+Figures are per value moved through the channel (one send plus its matching receive).
+
+| Benchmark              |    Go |    So | Winner        |
+| ---------------------- | ----: | ----: | ------------- |
+| Uncontended (1 thread) |  24ns |  21ns | **So** - 1.1x |
+| Unbuffered handoff     | 130ns | 3.0µs | Go - 0.04x    |
+| Buffered handoff (10)  |  44ns | 400ns | Go - 0.11x    |
+| Buffered handoff (100) |  33ns |  70ns | Go - 0.47x    |
+
+The uncontended case fills then drains a buffer from a single thread, so nothing
+ever blocks; it is just lock plus copy, and So's thin pthread mutex edges ahead.
+The handoff rows move values between a producer and a consumer thread, where So
+pays a wakeup on every transfer that parks. The gap is largest for the unbuffered
+channel, where every value is a rendezvous with two wakeups; it narrows to ~2x
+once a buffer of 100 lets most sends land without parking.
 
 Apple M1 • Go 1.26.1
 
