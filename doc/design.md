@@ -22,4 +22,4 @@ So is highly opinionated.
 
 **Hiding C entirely**. So is a cleaner way to write C, not a replacement for it. You should be familiar with C to use So effectively.
 
-**Go feature parity**. Less is more. Iterators aren't coming, and neither are generic methods. Concurrency features might be added, but only after the non-concurrent parts of the language and the standard library are stable.
+**Go feature parity**. Less is more. Iterators aren't coming, and neither are generic methods. Concurrency features are part of the standard library, not the language itself.
