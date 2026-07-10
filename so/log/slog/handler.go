@@ -7,6 +7,7 @@ package slog
 import (
 	"solod.dev/so/io"
 	"solod.dev/so/strconv"
+	"solod.dev/so/sync"
 	"solod.dev/so/time"
 )
 
@@ -115,6 +116,23 @@ func (h *TextHandler) Handle(r Record) error {
 	}
 
 	_, err := io.WriteString(h.w, "\n")
+	return err
+}
+
+// syncHandler is a thread-safe Handle wrapper.
+type syncHandler struct {
+	inner Handler
+	mu    sync.Mutex
+}
+
+func (h *syncHandler) Enabled(level Level) bool {
+	return h.inner.Enabled(level)
+}
+
+func (h *syncHandler) Handle(r Record) error {
+	h.mu.Lock()
+	err := h.inner.Handle(r)
+	h.mu.Unlock()
 	return err
 }
 

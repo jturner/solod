@@ -1,6 +1,7 @@
 package main
 
 import (
+	"solod.dev/so/conc"
 	"solod.dev/so/log/slog"
 	"solod.dev/so/strings"
 	"solod.dev/so/testing"
@@ -49,5 +50,35 @@ func TestText(t *testing.T) {
 	}
 	if !strings.Contains(out, `INFO test quoting msg="hello world"`) {
 		t.Error("string with spaces should be quoted")
+	}
+}
+
+// getDefault returns the process-global default logger.
+func getDefault(arg any) any {
+	_ = arg
+	return slog.Default()
+}
+
+func TestDefaultConcurrentInit(t *testing.T) {
+	// The default logger lazy init must run exactly once,
+	// so every thread must observe the same non-nil *Logger.
+	const n = 8
+	var threads [n]conc.Thread
+	for i := range n {
+		threads[i] = conc.Go(getDefault, nil, nil)
+	}
+
+	var first *slog.Logger
+	for i := range n {
+		got := threads[i].Wait().(*slog.Logger)
+		if got == nil {
+			t.Fatal("default logger is nil")
+			return
+		}
+		if i == 0 {
+			first = got
+		} else if got != first {
+			t.Error("default logger differs between threads")
+		}
 	}
 }

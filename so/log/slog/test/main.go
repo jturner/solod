@@ -8,5 +8,6 @@ func main() {
 	testing.RunTests("so/log/slog", []testing.Test{
 		{Name: "TestEnabled", F: TestEnabled},
 		{Name: "TestText", F: TestText},
+		{Name: "TestDefaultConcurrentInit", F: TestDefaultConcurrentInit},
 	})
 }

@@ -355,6 +355,8 @@ func TestDefault(t *testing.T) {
 	defer func() { defaultLogger = saved }()
 
 	t.Run("ensureDefault", func(t *testing.T) {
+		// Reset the lazy-init guard so the default is rebuilt from scratch.
+		defaultOnce.Init()
 		defaultLogger = nil
 		d := Default()
 		be.True(t, d != nil)

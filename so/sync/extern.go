@@ -34,7 +34,7 @@ type pthread_cond_t struct{}
 //so:extern
 func pthread_mutex_init(mu *pthread_mutex_t, attr any) c.Int {
 	_, _ = mu, attr
-	return -1
+	return 0
 }
 
 // pthread_mutex_destroy destroys a mutex.
@@ -43,7 +43,7 @@ func pthread_mutex_init(mu *pthread_mutex_t, attr any) c.Int {
 //so:extern
 func pthread_mutex_destroy(mu *pthread_mutex_t) c.Int {
 	_ = mu
-	return -1
+	return 0
 }
 
 // pthread_mutex_lock locks a mutex, blocking until it is available.
@@ -52,7 +52,7 @@ func pthread_mutex_destroy(mu *pthread_mutex_t) c.Int {
 //so:extern
 func pthread_mutex_lock(mu *pthread_mutex_t) c.Int {
 	_ = mu
-	return -1
+	return 0
 }
 
 // pthread_mutex_unlock unlocks a mutex.
@@ -61,7 +61,7 @@ func pthread_mutex_lock(mu *pthread_mutex_t) c.Int {
 //so:extern
 func pthread_mutex_unlock(mu *pthread_mutex_t) c.Int {
 	_ = mu
-	return -1
+	return 0
 }
 
 // pthread_mutex_trylock tries to lock a mutex without blocking.
@@ -70,7 +70,7 @@ func pthread_mutex_unlock(mu *pthread_mutex_t) c.Int {
 //so:extern
 func pthread_mutex_trylock(mu *pthread_mutex_t) c.Int {
 	_ = mu
-	return -1
+	return 0
 }
 
 // pthread_cond_destroy destroys a condition variable.
@@ -79,7 +79,7 @@ func pthread_mutex_trylock(mu *pthread_mutex_t) c.Int {
 //so:extern
 func pthread_cond_destroy(cond *pthread_cond_t) c.Int {
 	_ = cond
-	return -1
+	return 0
 }
 
 // pthread_cond_wait atomically unlocks m and blocks until cond is signaled,
@@ -88,7 +88,7 @@ func pthread_cond_destroy(cond *pthread_cond_t) c.Int {
 //so:extern
 func pthread_cond_wait(cond *pthread_cond_t, mu *pthread_mutex_t) c.Int {
 	_, _ = cond, mu
-	return -1
+	return 0
 }
 
 // pthread_cond_signal wakes at least one thread blocked on cond.
@@ -97,7 +97,7 @@ func pthread_cond_wait(cond *pthread_cond_t, mu *pthread_mutex_t) c.Int {
 //so:extern
 func pthread_cond_signal(cond *pthread_cond_t) c.Int {
 	_ = cond
-	return -1
+	return 0
 }
 
 // pthread_cond_broadcast wakes all threads blocked on cond.
@@ -106,7 +106,7 @@ func pthread_cond_signal(cond *pthread_cond_t) c.Int {
 //so:extern
 func pthread_cond_broadcast(cond *pthread_cond_t) c.Int {
 	_ = cond
-	return -1
+	return 0
 }
 
 // condInitMono initializes cond so its timed waits use the monotonic clock,
@@ -115,7 +115,7 @@ func pthread_cond_broadcast(cond *pthread_cond_t) c.Int {
 //so:extern sync_condInitMono
 func condInitMono(cond *pthread_cond_t) c.Int {
 	_ = cond
-	return -1
+	return 0
 }
 
 // condWaitRel atomically unlocks mu and blocks on cond until it is signaled or
@@ -126,5 +126,5 @@ func condInitMono(cond *pthread_cond_t) c.Int {
 //so:extern sync_condWaitRel
 func condWaitRel(cond *pthread_cond_t, mu *pthread_mutex_t, nsec int64) c.Int {
 	_, _, _ = cond, mu, nsec
-	return -1
+	return 0
 }

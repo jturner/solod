@@ -32,6 +32,7 @@ package slog
 
 import (
 	"solod.dev/so/os"
+	"solod.dev/so/sync"
 	"solod.dev/so/time"
 )
 
@@ -96,15 +97,29 @@ func (l *Logger) Handler() Handler {
 
 // Default logger. Uses a [TextHandler] that writes to [os.Stderr]
 // and handles only records at or above [LevelInfo].
+// Unlike the regular [Logger], the default logger is thread-safe.
+var defaultOnce sync.Once
+var defaultSync syncHandler
 var defaultHandler TextHandler
 var defaultLogger_ Logger
 var defaultLogger *Logger
 
 // SetDefault sets the default [Logger] which is used by
 // the top-level functions [Info], [Debug] and so on.
+//
+// The installed logger's thread safety is the caller's responsibility;
+// SetDefault by itself does not make the logger safe for concurrent use.
+//
+// SetDefault is not thread-safe. Call it during startup,
+// before logging from multiple threads.
 func SetDefault(l *Logger) {
 	defaultLogger = l
+	// Consume the once so a later lazy [ensureDefault] becomes a no-op.
+	defaultOnce.Do(noop)
 }
+
+// noop does nothing. Used to consume defaultOnce in SetDefault.
+func noop() {}
 
 // Default returns the default [Logger].
 func Default() *Logger {
@@ -142,14 +157,23 @@ func Log(level Level, msg string, attrs ...Attr) {
 	defaultLogger.Log(level, msg, attrs...)
 }
 
-// ensureDefault lazy-initializes the default logger.
-// Can't use init because of the dependency on os.Stderr,
-// which may not be initialized at that time.
+// ensureDefault lazy-initializes the default logger exactly once.
+// The build is deferred to first use (rather than init) because of the
+// dependency on os.Stderr, which a sibling package's constructor may not
+// have set at init time.
 func ensureDefault() {
-	if defaultLogger != nil {
-		return
-	}
+	defaultOnce.Do(buildDefault)
+}
+
+// buildDefault constructs the default logger.
+func buildDefault() {
+	defaultSync.mu.Init()
 	defaultHandler = NewTextHandler(os.Stderr, LevelInfo)
-	defaultLogger_ = New(&defaultHandler)
+	defaultSync.inner = &defaultHandler
+	defaultLogger_ = New(&defaultSync)
 	defaultLogger = &defaultLogger_
+}
+
+func init() {
+	defaultOnce.Init()
 }
