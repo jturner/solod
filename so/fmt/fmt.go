@@ -49,8 +49,9 @@ var (
 	ErrSize  = errors.New("buffer size exceeded")
 )
 
-// Buffer is a fixed-size stack-allocated buffer
-// for formatted output and scanning.
+// Buffer is a fixed-size stack-allocated buffer for formatted output.
+// It is used instead of a []byte to avoid the slice decay problem with
+// C variadics - see [Sprintf] for details.
 //
 //so:extern
 type Buffer struct {
@@ -125,6 +126,13 @@ func Printf(format string, a ...any) (int, error) {
 // Sprintf formats according to a format specifier, outputs to buf,
 // and returns the resulting string.
 // If the output size exceeds buf length, it silently truncates the output.
+//
+// Sprintf accepts a [Buffer] instead of a plain []byte because it's a C variadic
+// over vsnprintf. A []byte arg would decay to a bare pointer (losing the length
+// vsnprintf needs to bound the output), and nodecay is all-or-nothing per
+// function, so it would also stop the format string from decaying to the
+// char* the variadic requires. As a named struct, Buffer is passed by value
+// with both Ptr and Len intact while format still decays to char*.
 //
 //so:extern
 func Sprintf(buf Buffer, format string, a ...any) string {
