@@ -27,6 +27,14 @@ func newBox() box {
 	}
 }
 
+func (b box) sum(a [3]int) int {
+	total := 0
+	for i, v := range a {
+		total += b.nums[i] + v
+	}
+	return total
+}
+
 type arange struct {
 	lo uint8
 	hi uint8
@@ -105,6 +113,14 @@ func main() {
 		v1 := at([3]int{11, 22, 33}, 1)
 		if v1 != 22 {
 			panic("want at([11, 22, 33], 1) == 22")
+		}
+	}
+	{
+		// Passing array literals to methods.
+		b := newBox()
+		total := b.sum([3]int{11, 22, 33})
+		if total != 66*2 {
+			panic("want b.sum([11, 22, 33]) == 66*2")
 		}
 	}
 	{

@@ -299,12 +299,7 @@ func (g *Generator) emitFuncCallArgs(w io.Writer, call *ast.CallExpr) {
 			fmt.Fprint(w, ", ")
 		}
 		if sig != nil && i < sig.Params().Len() {
-			paramType := sig.Params().At(i).Type()
-			if arr, ok := paramType.Underlying().(*types.Array); ok {
-				g.emitArrayArg(w, call, arg, arr)
-			} else {
-				g.emitExprAsType(w, call, arg, paramType)
-			}
+			g.emitCallArg(w, call, arg, sig.Params().At(i).Type())
 		} else {
 			// No signature available (e.g. func literal), emit arg as-is.
 			g.emitExpr(w, arg)
@@ -320,7 +315,7 @@ func (g *Generator) emitFuncVarArgs(w io.Writer, call *ast.CallExpr, sig *types.
 		if i > 0 {
 			fmt.Fprint(w, ", ")
 		}
-		g.emitExprAsType(w, call, call.Args[i], sig.Params().At(i).Type())
+		g.emitCallArg(w, call, call.Args[i], sig.Params().At(i).Type())
 	}
 
 	// Emit variadic args as a so_Slice literal.
@@ -373,6 +368,17 @@ func (g *Generator) emitFuncExternArgs(w io.Writer, call *ast.CallExpr) {
 			g.emitCArg(w, arg)
 		}
 	}
+}
+
+// emitCallArg emits a call argument coerced to the parameter type.
+func (g *Generator) emitCallArg(w io.Writer, node ast.Node, arg ast.Expr, paramType types.Type) {
+	// An array parameter that receives a composite literal needs C compound
+	// literal syntax: (so_int[3]){11, 22, 33} instead of just {11, 22, 33}.
+	if arr, ok := paramType.Underlying().(*types.Array); ok {
+		g.emitArrayArg(w, node, arg, arr)
+		return
+	}
+	g.emitExprAsType(w, node, arg, paramType)
 }
 
 // emitCArg emits an expression decayed to its C-compatible type:

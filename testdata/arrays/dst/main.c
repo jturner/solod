@@ -20,6 +20,7 @@ static void change(so_int a[3]);
 static so_int at(so_int a[3], so_int i);
 static so_int* reverse(so_int a[3]);
 static box newBox(void);
+static so_int box_sum(box b, so_int a[3]);
 
 // -- Variables and constants --
 static arange aranges[16] = {[0] = (arange){0x10, 0x20}, [1] = (arange){0x30, 0x40}, [2] = (arange){0x50, 0x60}};
@@ -43,6 +44,15 @@ static so_int* reverse(so_int a[3]) {
 
 static box newBox(void) {
     return (box){.nums = {11, 22, 33}};
+}
+
+static so_int box_sum(box b, so_int a[3]) {
+    so_int total = 0;
+    for (so_int i = 0; i < 3; i++) {
+        so_int v = a[i];
+        total += b.nums[i] + v;
+    }
+    return total;
 }
 
 int main(void) {
@@ -110,6 +120,14 @@ int main(void) {
         so_int v1 = at((so_int[3]){11, 22, 33}, 1);
         if (v1 != 22) {
             so_panic("want at([11, 22, 33], 1) == 22");
+        }
+    }
+    {
+        // Passing array literals to methods.
+        box b = newBox();
+        so_int total = box_sum(b, (so_int[3]){11, 22, 33});
+        if (total != 66 * 2) {
+            so_panic("want b.sum([11, 22, 33]) == 66*2");
         }
     }
     {

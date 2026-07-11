@@ -298,7 +298,7 @@ func (g *Generator) emitMethodCallArgs(w io.Writer, sel *ast.SelectorExpr, call 
 	// Non-variadic call or variadic call with ellipsis: emit all args directly.
 	for i, arg := range args {
 		fmt.Fprintf(w, ", %s", lparen)
-		g.emitExprAsType(w, sel, arg, sig.Params().At(i).Type())
+		g.emitCallArg(w, sel, arg, sig.Params().At(i).Type())
 		fmt.Fprint(w, rparen)
 	}
 }
@@ -324,7 +324,7 @@ func (g *Generator) emitMethodVarArgs(w io.Writer, sel *ast.SelectorExpr, call *
 	args := call.Args
 	for i := 0; i < fixedCount && i < len(args); i++ {
 		fmt.Fprintf(w, ", %s", lparen)
-		g.emitExprAsType(w, sel, args[i], sig.Params().At(i).Type())
+		g.emitCallArg(w, sel, args[i], sig.Params().At(i).Type())
 		fmt.Fprint(w, rparen)
 	}
 
